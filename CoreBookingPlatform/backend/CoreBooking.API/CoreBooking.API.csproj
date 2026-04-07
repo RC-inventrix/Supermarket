@@ -1,0 +1,21 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.AspNetCore.OpenApi" Version="10.0.5" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\CoreBooking.Domain\CoreBooking.Domain.csproj" />
+    <ProjectReference Include="..\CoreBooking.Infrastructure\CoreBooking.Infrastructure.csproj" />
+    <ProjectReference Include="..\Adapters.MeatSupplier\Adapters.MeatSupplier.csproj" />
+    <ProjectReference Include="..\Adapters.VeggieSupplier\Adapters.VeggieSupplier.csproj" />
+    <ProjectReference Include="..\Adapters.SpiceSupplier\Adapters.SpiceSupplier.csproj" />
+  </ItemGroup>
+
+</Project>
