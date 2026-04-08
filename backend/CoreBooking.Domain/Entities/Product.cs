@@ -9,6 +9,9 @@ public class Product
     public string Name { get; set; } = string.Empty;
     public decimal Price { get; set; }
 
+    // New property to cache the external stock level locally during import
+    public int AvailableQuantity { get; set; }
+
     public Provider? Provider { get; set; }
     public Category? Category { get; set; }
     public ICollection<ProductAttribute> Attributes { get; set; } = new List<ProductAttribute>();
