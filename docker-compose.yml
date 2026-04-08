@@ -1,0 +1,40 @@
+services:
+  sqlserver:
+    image: mcr.microsoft.com/mssql/server:2022-latest
+    container_name: corebooking-sqlserver
+    environment:
+      ACCEPT_EULA: "Y"
+      MSSQL_SA_PASSWORD: "Your_strong_Password123!"
+    ports:
+      - "1433:1433"
+    volumes:
+      - sqlserver-data:/var/opt/mssql
+
+  api:
+    container_name: corebooking-api
+    build:
+      context: ./backend
+      dockerfile: ./CoreBooking.API/Dockerfile
+    environment:
+      ASPNETCORE_ENVIRONMENT: Development
+      ASPNETCORE_URLS: http://+:8080
+      ConnectionStrings__DefaultConnection: Server=sqlserver,1433;Database=CoreBookingDb;User Id=sa;Password=Your_strong_Password123!;TrustServerCertificate=True;
+    depends_on:
+      - sqlserver
+    ports:
+      - "8080:8080"
+
+  frontend:
+    container_name: corebooking-frontend
+    build:
+      context: ./frontend
+      dockerfile: ./Dockerfile
+    environment:
+      VITE_API_BASE_URL: http://localhost:8080
+    depends_on:
+      - api
+    ports:
+      - "3000:80"
+
+volumes:
+  sqlserver-data:
