@@ -36,6 +36,7 @@ return key switch
     AdapterKeys.Spice => serviceProvider.GetRequiredService<SpiceSupplierAdapter>(),
     _ => throw new KeyNotFoundException($"Adapter {key} not found.")
 };
+});
 
 var app = builder.Build();
 
