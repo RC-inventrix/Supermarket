@@ -15,15 +15,15 @@ builder.Services.AddOpenApi();
 builder.Services.AddDbContext<CoreBookingDbContext>(options =>
     options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection")));
 
-// 1. Register the typed HTTP Clients pointing to your running external microservices
+// 1. Register the typed HTTP Clients pointing to your Docker Containers!
 builder.Services.AddHttpClient<MeatSupplierAdapter>(client =>
-    client.BaseAddress = new Uri("https://localhost:32771")); 
+    client.BaseAddress = new Uri("http://meatsupplier-api:8080"));
 
 builder.Services.AddHttpClient<VeggieSupplierAdapter>(client =>
-    client.BaseAddress = new Uri("https://localhost:32773"));
+    client.BaseAddress = new Uri("http://veggiesupplier-api:8080"));
 
 builder.Services.AddHttpClient<SpiceSupplierAdapter>(client =>
-    client.BaseAddress = new Uri("https://localhost:32769"));
+    client.BaseAddress = new Uri("http://spicesupplier-api:8080"));
 
 // 2. Register the Adapter Factory 
 // This reads the AdapterKey from the database and resolves the correct C# class dynamically!

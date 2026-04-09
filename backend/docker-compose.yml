@@ -1,0 +1,64 @@
+version: '3.8'
+
+services:
+  # 1. The SQL Server Database
+  sqlserver:
+    image: mcr.microsoft.com/mssql/server:2022-latest
+    environment:
+      - ACCEPT_EULA=Y
+      - SA_PASSWORD=YourStrong@Passw0rd123 # Must match your connection string exactly!
+    ports:
+      - "1433:1433"
+    networks:
+      - supermarket-network
+
+  # 2. The Core API Hub
+  corebooking-api:
+    image: corebooking-api
+    build:
+      context: . # Builds from the Solution root so it can see Domain/Infrastructure
+      dockerfile: CoreBooking.API/Dockerfile
+    ports:
+      - "7000:8080"
+    environment:
+      # Override the database connection to point to the docker 'sqlserver' container
+      - ConnectionStrings__DefaultConnection=Server=sqlserver,1433;Database=SupermarketDb;User Id=sa;Password=YourStrong@Passw0rd123;TrustServerCertificate=True;
+    depends_on:
+      - sqlserver
+    networks:
+      - supermarket-network
+
+  # 3. The External Suppliers
+  meatsupplier-api:
+    image: meatsupplier-api
+    build:
+      context: . # UPDATED: Now points to Solution Root
+      dockerfile: MeatSupplier.API/Dockerfile # UPDATED: Path to the specific Dockerfile
+    ports:
+      - "7001:8080"
+    networks:
+      - supermarket-network
+
+  veggiesupplier-api:
+    image: veggiesupplier-api
+    build:
+      context: . # UPDATED: Now points to Solution Root
+      dockerfile: VeggieSupplier.API/Dockerfile # UPDATED: Path to the specific Dockerfile
+    ports:
+      - "7002:8080"
+    networks:
+      - supermarket-network
+
+  spicesupplier-api:
+    image: spicesupplier-api
+    build:
+      context: . # UPDATED: Now points to Solution Root
+      dockerfile: SpiceSupplier.API/Dockerfile # UPDATED: Path to the specific Dockerfile
+    ports:
+      - "7003:8080"
+    networks:
+      - supermarket-network
+
+networks:
+  supermarket-network:
+    driver: bridge
