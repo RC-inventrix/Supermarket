@@ -37,7 +37,7 @@ return key switch
     _ => throw new KeyNotFoundException($"Adapter {key} not found.")
 };
 });
-
+builder.Services.AddSwaggerGen();
 var app = builder.Build();
 
 // Configure the HTTP request pipeline.
@@ -46,6 +46,9 @@ if (app.Environment.IsDevelopment())
     app.MapOpenApi();
     // Optional: If you want Swagger UI (the visual web page) in .NET 10, 
     // you would typically add app.UseSwaggerUI() here after installing the Swashbuckle package.
+
+    app.UseSwagger();
+    app.UseSwaggerUI();
 }
 
 app.UseHttpsRedirection();

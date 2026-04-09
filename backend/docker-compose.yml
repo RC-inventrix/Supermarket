@@ -21,6 +21,7 @@ services:
     ports:
       - "7000:8080"
     environment:
+      - ASPNETCORE_ENVIRONMENT=Development
       # Override the database connection to point to the docker 'sqlserver' container
       - ConnectionStrings__DefaultConnection=Server=sqlserver,1433;Database=SupermarketDb;User Id=sa;Password=YourStrong@Passw0rd123;TrustServerCertificate=True;
     depends_on:
