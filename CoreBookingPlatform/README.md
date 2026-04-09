@@ -1,4 +1,3 @@
-<<<<<<< HEAD
 # Core Booking Platform
 
 Core Booking Platform is a modular Food Market integration hub that centralizes catalog ingestion, availability checks, cart/order lifecycle, and checkout orchestration across multiple external suppliers.
@@ -67,6 +66,3 @@ Services started by Docker Compose:
 ├── .gitignore
 └── README.md
 ```
-=======
-Initial commit
->>>>>>> f25dd9dd15685d500bc4428baf7859d5da5fe063
