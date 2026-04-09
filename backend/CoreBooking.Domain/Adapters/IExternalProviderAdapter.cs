@@ -1,41 +1,16 @@
-namespace CoreBooking.Domain.Adapters;
+using CoreBooking.Domain.Entities;
 
-public interface IExternalProviderAdapter
+namespace CoreBooking.Domain.Adapters
 {
-    string AdapterKey { get; }
+    public interface IExternalProviderAdapter
+    {
+        // Fetches external products and translates them into our Domain Product entity
+        Task<IEnumerable<Product>> GetProductsAsync(int providerId, int categoryId);
 
-    Task<IReadOnlyCollection<ExternalProductImportData>> ImportProductsAsync(CancellationToken cancellationToken = default);
+        // Returns the available stock quantity
+        Task<int> CheckAvailabilityAsync(string externalProductId);
 
-    Task<IReadOnlyCollection<ExternalProductContentImportData>> ImportProductContentAsync(CancellationToken cancellationToken = default);
-
-    Task<ExternalProductAvailabilityResult> CheckAvailabilityAsync(
-        string externalProductId,
-        int requestedQuantity,
-        CancellationToken cancellationToken = default);
-
-    Task<string> CheckoutAsync(ExternalCheckoutRequest request, CancellationToken cancellationToken = default);
+        // Performs the checkout and returns the ExternalBookingReference (e.g., "MEAT-CONF-123")
+        Task<string> PlaceOrderAsync(string externalProductId, int quantity);
+    }
 }
-
-public sealed record ExternalProductImportData(
-    string ExternalProductId,
-    string Name,
-    decimal Price,
-    string CategoryName);
-
-public sealed record ExternalProductContentImportData(
-    string ExternalProductId,
-    string ContentType,
-    string Data);
-
-public sealed record ExternalProductAvailabilityResult(
-    string ExternalProductId,
-    bool IsAvailable,
-    int AvailableQuantity,
-    string? Message = null);
-
-public sealed record ExternalCheckoutItem(string ExternalProductId, int Quantity, decimal UnitPrice);
-
-public sealed record ExternalCheckoutRequest(
-    string UserReference,
-    IReadOnlyCollection<ExternalCheckoutItem> Items,
-    decimal TotalAmount);
