@@ -19,10 +19,10 @@ namespace CoreBooking.API.Controllers
             _adapterFactory = adapterFactory;
         }
 
+        // --- EXISTING FUNCTIONALITY (Untouched) ---
         [HttpPost("checkout")]
         public async Task<IActionResult> Checkout(int userId, int productId, int quantity)
         {
-            // 1. Get the product and its provider from our local DB
             var product = await _context.Products
                 .Include(p => p.Provider)
                 .FirstOrDefaultAsync(p => p.Id == productId);
@@ -31,20 +31,17 @@ namespace CoreBooking.API.Controllers
 
             var adapter = _adapterFactory(product.Provider.AdapterKey);
 
-            // 2. Check real-time availability with the external system
             int availableStock = await adapter.CheckAvailabilityAsync(product.ExternalProductId);
             if (availableStock < quantity) return BadRequest("Insufficient external stock.");
 
-            // 3. Perform the external checkout
             string bookingRef = await adapter.PlaceOrderAsync(product.ExternalProductId, quantity);
 
-            // 4. Save the confirmed order in our local database
             var order = new Order
             {
                 UserId = userId,
                 TotalAmount = product.Price * quantity,
                 Status = "Confirmed",
-                ExternalBookingReference = bookingRef // Storing the required confirmation code
+                ExternalBookingReference = bookingRef
             };
 
             _context.Orders.Add(order);
@@ -52,5 +49,50 @@ namespace CoreBooking.API.Controllers
 
             return Ok(new { Message = "Order Confirmed!", ExternalReference = bookingRef });
         }
+
+        // --- ADDED CHANGES BEGIN: View & Update Orders ---
+
+        [HttpGet("user/{userId}")]
+        public async Task<IActionResult> GetUserOrders(int userId)
+        {
+            var orders = await _context.Orders
+                .Where(o => o.UserId == userId)
+                .OrderByDescending(o => o.Id)
+                .ToListAsync();
+
+            return Ok(orders);
+        }
+
+        [HttpGet("{orderId}")]
+        public async Task<IActionResult> GetOrderDetails(int orderId)
+        {
+            var order = await _context.Orders
+                .Include(o => o.Items)
+                .ThenInclude(i => i.Product)
+                .FirstOrDefaultAsync(o => o.Id == orderId);
+
+            if (order == null) return NotFound("Order not found.");
+
+            return Ok(order);
+        }
+
+        [HttpPut("{orderId}/status")]
+        public async Task<IActionResult> UpdateOrderStatus(int orderId, [FromBody] UpdateStatusRequest request)
+        {
+            var order = await _context.Orders.FindAsync(orderId);
+            if (order == null) return NotFound("Order not found.");
+
+            order.Status = request.Status;
+            await _context.SaveChangesAsync();
+
+            return Ok(new { Message = $"Order status updated to '{order.Status}'.", OrderId = order.Id });
+        }
+
+        // --- ADDED CHANGES END ---
+    }
+
+    public class UpdateStatusRequest
+    {
+        public string Status { get; set; } = string.Empty;
     }
 }
