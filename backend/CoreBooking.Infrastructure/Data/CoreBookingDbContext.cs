@@ -40,6 +40,18 @@ namespace CoreBooking.Infrastructure.Data
             modelBuilder.Entity<Order>()
                 .Property(o => o.TotalAmount)
                 .HasColumnType("decimal(18,2)");
+
+            modelBuilder.Entity<Provider>()
+                .HasOne(p => p.Category)
+                .WithMany(c => c.Providers)
+                .HasForeignKey(p => p.CategoryId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            modelBuilder.Entity<Provider>()
+                .HasIndex(p => p.AdapterKey)
+                .IsUnique();
+
+
         }
     }
 }
