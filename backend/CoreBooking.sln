@@ -20,6 +20,8 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Items", "Solution 
 		docker-compose.yml = docker-compose.yml
 	EndProjectSection
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AdapterService.API", "AdapterService.API\AdapterService.API.csproj", "{63B2E504-BA2C-4443-8A3F-E63A3CCB2782}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -102,6 +104,18 @@ Global
 		{63290D9C-CA12-4FC1-8DC9-1C8849E9C856}.Release|x64.Build.0 = Release|Any CPU
 		{63290D9C-CA12-4FC1-8DC9-1C8849E9C856}.Release|x86.ActiveCfg = Release|Any CPU
 		{63290D9C-CA12-4FC1-8DC9-1C8849E9C856}.Release|x86.Build.0 = Release|Any CPU
+		{63B2E504-BA2C-4443-8A3F-E63A3CCB2782}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{63B2E504-BA2C-4443-8A3F-E63A3CCB2782}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{63B2E504-BA2C-4443-8A3F-E63A3CCB2782}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{63B2E504-BA2C-4443-8A3F-E63A3CCB2782}.Debug|x64.Build.0 = Debug|Any CPU
+		{63B2E504-BA2C-4443-8A3F-E63A3CCB2782}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{63B2E504-BA2C-4443-8A3F-E63A3CCB2782}.Debug|x86.Build.0 = Debug|Any CPU
+		{63B2E504-BA2C-4443-8A3F-E63A3CCB2782}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{63B2E504-BA2C-4443-8A3F-E63A3CCB2782}.Release|Any CPU.Build.0 = Release|Any CPU
+		{63B2E504-BA2C-4443-8A3F-E63A3CCB2782}.Release|x64.ActiveCfg = Release|Any CPU
+		{63B2E504-BA2C-4443-8A3F-E63A3CCB2782}.Release|x64.Build.0 = Release|Any CPU
+		{63B2E504-BA2C-4443-8A3F-E63A3CCB2782}.Release|x86.ActiveCfg = Release|Any CPU
+		{63B2E504-BA2C-4443-8A3F-E63A3CCB2782}.Release|x86.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

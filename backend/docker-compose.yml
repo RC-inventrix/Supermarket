@@ -24,17 +24,33 @@ services:
       - ASPNETCORE_ENVIRONMENT=Development
       # Override the database connection to point to the docker 'sqlserver' container
       - ConnectionStrings__DefaultConnection=Server=sqlserver,1433;Database=SupermarketDb;User Id=sa;Password=YourStrong@Passw0rd123;TrustServerCertificate=True;
+      # NEW: Gives Core API the internal Docker URL of the Adapter Gateway
+      - AdapterServiceUrl=http://adapterservice.api:8080
     depends_on:
       - sqlserver
     networks:
       - supermarket-network
 
-  # 3. The External Suppliers
+  # 3. The NEW Adapter API Service (Integration Gateway)
+  adapterservice.api:
+    image: adapterservice-api
+    build:
+      context: .
+      dockerfile: AdapterService.API/Dockerfile
+    ports:
+      - "7004:8080"
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Development
+      - ASPNETCORE_HTTP_PORTS=8080
+    networks:
+      - supermarket-network # FIXED: Now matches the rest of the application
+
+  # 4. The External Suppliers
   meatsupplier-api:
     image: meatsupplier-api
     build:
-      context: . # UPDATED: Now points to Solution Root
-      dockerfile: MeatSupplier.API/Dockerfile # UPDATED: Path to the specific Dockerfile
+      context: .
+      dockerfile: MeatSupplier.API/Dockerfile
     ports:
       - "7001:8080"
     networks:
@@ -43,8 +59,8 @@ services:
   veggiesupplier-api:
     image: veggiesupplier-api
     build:
-      context: . # UPDATED: Now points to Solution Root
-      dockerfile: VeggieSupplier.API/Dockerfile # UPDATED: Path to the specific Dockerfile
+      context: .
+      dockerfile: VeggieSupplier.API/Dockerfile
     ports:
       - "7002:8080"
     networks:
@@ -53,8 +69,8 @@ services:
   spicesupplier-api:
     image: spicesupplier-api
     build:
-      context: . # UPDATED: Now points to Solution Root
-      dockerfile: SpiceSupplier.API/Dockerfile # UPDATED: Path to the specific Dockerfile
+      context: .
+      dockerfile: SpiceSupplier.API/Dockerfile
     ports:
       - "7003:8080"
     networks:

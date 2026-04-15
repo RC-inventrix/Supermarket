@@ -1,0 +1,6 @@
+@AdapterService.API_HostAddress = http://localhost:5223
+
+GET {{AdapterService.API_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###

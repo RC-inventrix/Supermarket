@@ -1,42 +1,24 @@
 using CoreBooking.Infrastructure.Data;
 using Microsoft.EntityFrameworkCore;
 using CoreBooking.API.Services;
-using CoreBooking.Domain.Adapters;
 
 var builder = WebApplication.CreateBuilder(args);
 
 // Add services to the container.
 builder.Services.AddControllers();
-
-// Learn more about configuring OpenAPI at https://aka.ms/aspnet/openapi
 builder.Services.AddOpenApi();
 
-// Register the DbContext with the connection string from appsettings.json
+// Register the DbContext
 builder.Services.AddDbContext<CoreBookingDbContext>(options =>
     options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection")));
 
-// 1. Register the typed HTTP Clients pointing to your Docker Containers!
-builder.Services.AddHttpClient<MeatSupplierAdapter>(client =>
-    client.BaseAddress = new Uri("http://meatsupplier-api:8080"));
+// --- REPLACED: Old Adapter Factory Logic ---
+// We now register a single HTTP Client pointing to the AdapterService.API Docker container
+var gatewayUrl = builder.Configuration["AdapterServiceUrl"] ?? "http://adapterservice.api:8080";
+builder.Services.AddHttpClient<IntegrationGatewayClient>(client =>
+    client.BaseAddress = new Uri(gatewayUrl));
+// -------------------------------------------
 
-builder.Services.AddHttpClient<VeggieSupplierAdapter>(client =>
-    client.BaseAddress = new Uri("http://veggiesupplier-api:8080"));
-
-builder.Services.AddHttpClient<SpiceSupplierAdapter>(client =>
-    client.BaseAddress = new Uri("http://spicesupplier-api:8080"));
-
-// 2. Register the Adapter Factory 
-// This reads the AdapterKey from the database and resolves the correct C# class dynamically!
-builder.Services.AddTransient<Func<string, IExternalProviderAdapter>>(serviceProvider => key =>
-{
-return key switch
-{
-    AdapterKeys.Meat => serviceProvider.GetRequiredService<MeatSupplierAdapter>(),
-    AdapterKeys.Veggie => serviceProvider.GetRequiredService<VeggieSupplierAdapter>(),
-    AdapterKeys.Spice => serviceProvider.GetRequiredService<SpiceSupplierAdapter>(),
-    _ => throw new KeyNotFoundException($"Adapter {key} not found.")
-};
-});
 builder.Services.AddSwaggerGen();
 var app = builder.Build();
 
@@ -44,17 +26,11 @@ var app = builder.Build();
 if (app.Environment.IsDevelopment())
 {
     app.MapOpenApi();
-    // Optional: If you want Swagger UI (the visual web page) in .NET 10, 
-    // you would typically add app.UseSwaggerUI() here after installing the Swashbuckle package.
-
     app.UseSwagger();
     app.UseSwaggerUI();
 }
 
 app.UseHttpsRedirection();
-
 app.UseAuthorization();
-
 app.MapControllers();
-
 app.Run();
