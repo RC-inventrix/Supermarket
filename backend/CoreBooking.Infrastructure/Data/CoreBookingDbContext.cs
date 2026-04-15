@@ -17,7 +17,7 @@ namespace CoreBooking.Infrastructure.Data
         public DbSet<ProductContent> ProductContents { get; set; }
 
         // 2. The User & Transaction Entities
-        public DbSet<User> Users { get; set; }
+       // public DbSet<User> Users { get; set; }
         public DbSet<Cart> Carts { get; set; }
         public DbSet<CartItem> CartItems { get; set; }
         public DbSet<Order> Orders { get; set; }
