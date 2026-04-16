@@ -20,6 +20,20 @@ builder.Services.AddHttpClient<IntegrationGatewayClient>(client =>
 // -------------------------------------------
 
 builder.Services.AddSwaggerGen();
+
+// 1. Configure the CORS Policy
+// 1. Configure the CORS Policy
+builder.Services.AddCors(options =>
+{
+    options.AddPolicy("AllowReactApp", policy =>
+    {
+        // Added port 3001 right here!
+        policy.WithOrigins("http://localhost:3000", "http://localhost:3001", "http://localhost:5173")
+              .AllowAnyHeader()
+              .AllowAnyMethod();
+    });
+});
+
 var app = builder.Build();
 
 // Configure the HTTP request pipeline.
@@ -30,7 +44,14 @@ if (app.Environment.IsDevelopment())
     app.UseSwaggerUI();
 }
 
+// --- OPTIMIZED MIDDLEWARE PIPELINE ---
 app.UseHttpsRedirection();
-app.UseAuthorization();
-app.MapControllers();
+
+app.UseRouting();             // 1st: Identify the route
+app.UseCors("AllowReactApp"); // 2nd: Apply CORS rules for that route
+app.UseAuthorization();       // 3rd: Apply Authorization
+
+app.MapControllers();         // 4th: Execute the controller
+// -------------------------------------
+
 app.Run();

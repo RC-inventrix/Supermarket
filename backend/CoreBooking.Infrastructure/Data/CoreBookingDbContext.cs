@@ -1,4 +1,4 @@
-﻿using CoreBooking.Domain.Entities; // Ensure this matches your actual namespace
+﻿using CoreBooking.Domain.Entities;
 using Microsoft.EntityFrameworkCore;
 
 namespace CoreBooking.Infrastructure.Data
@@ -17,7 +17,7 @@ namespace CoreBooking.Infrastructure.Data
         public DbSet<ProductContent> ProductContents { get; set; }
 
         // 2. The User & Transaction Entities
-       // public DbSet<User> Users { get; set; }
+        // public DbSet<User> Users { get; set; } // Safely removed user authentication
         public DbSet<Cart> Carts { get; set; }
         public DbSet<CartItem> CartItems { get; set; }
         public DbSet<Order> Orders { get; set; }
@@ -27,8 +27,7 @@ namespace CoreBooking.Infrastructure.Data
         {
             base.OnModelCreating(modelBuilder);
 
-            // Optional: You can configure specific database rules here, 
-            // like ensuring the AdapterKey is unique, or setting decimal precision for Price.
+            // Configure decimal precision for financial calculations
             modelBuilder.Entity<Product>()
                 .Property(p => p.Price)
                 .HasColumnType("decimal(18,2)");
@@ -41,17 +40,15 @@ namespace CoreBooking.Infrastructure.Data
                 .Property(o => o.TotalAmount)
                 .HasColumnType("decimal(18,2)");
 
+            // Configure relationship rules
             modelBuilder.Entity<Provider>()
                 .HasOne(p => p.Category)
                 .WithMany(c => c.Providers)
                 .HasForeignKey(p => p.CategoryId)
                 .OnDelete(DeleteBehavior.Restrict);
 
-            modelBuilder.Entity<Provider>()
-                .HasIndex(p => p.AdapterKey)
-                .IsUnique();
-
-
+            // CHANGED: Removed the old AdapterKey unique index rule because 
+            // the AdapterKey property no longer exists in our architecture!
         }
     }
 }

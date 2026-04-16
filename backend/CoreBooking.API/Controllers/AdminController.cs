@@ -20,28 +20,22 @@ namespace CoreBooking.API.Controllers
             _gatewayClient = gatewayClient;
         }
 
-        // Temporary helper until your UI is built. 
-        // In the future, the Provider table will just save the URL directly!
-        private string GetSupplierUrl(string adapterKey) => adapterKey switch
-        {
-            "Meat" => "http://meatsupplier-api:8080",
-            "Veggie" => "http://veggiesupplier-api:8080",
-            "Spice" => "http://spicesupplier-api:8080",
-            _ => adapterKey
-        };
-
         [HttpPost("import-products/{providerId}")]
         public async Task<IActionResult> ImportProducts(int providerId)
         {
             var provider = await _context.Providers.FindAsync(providerId);
             if (provider == null) return NotFound("Provider not found.");
 
-            string supplierUrl = GetSupplierUrl(provider.AdapterKey);
+            // Pass the entire provider (with BaseUrl, Endpoints, and Mappings)
+            var importedProducts = await _gatewayClient.ImportProductsAsync(provider);
 
-            // CHANGED: Using the Gateway Client instead of the Factory
-            var importedProducts = await _gatewayClient.ImportProductsAsync(supplierUrl, providerId, provider.CategoryId);
+            // Fetch existing products, explicitly including Attributes and Content so we can update them
+            var existingProducts = await _context.Products
+                .Include(p => p.Attributes)
+                .Include(p => p.Contents)
+                .Where(p => p.ProviderId == providerId)
+                .ToListAsync();
 
-            var existingProducts = await _context.Products.Where(p => p.ProviderId == providerId).ToListAsync();
             int addedCount = 0;
             int updatedCount = 0;
 
@@ -50,15 +44,18 @@ namespace CoreBooking.API.Controllers
                 var existingProduct = existingProducts.FirstOrDefault(p => p.ExternalProductId == importedProduct.ExternalProductId);
                 if (existingProduct != null)
                 {
-                    if (existingProduct.Name != importedProduct.Name ||
-                        existingProduct.Price != importedProduct.Price ||
-                        existingProduct.AvailableQuantity != importedProduct.AvailableQuantity)
-                    {
-                        existingProduct.Name = importedProduct.Name;
-                        existingProduct.Price = importedProduct.Price;
-                        existingProduct.AvailableQuantity = importedProduct.AvailableQuantity;
-                        updatedCount++;
-                    }
+                    existingProduct.Name = importedProduct.Name;
+                    existingProduct.Price = importedProduct.Price;
+                    existingProduct.AvailableQuantity = importedProduct.AvailableQuantity;
+
+                    // Clear and replace dynamic Attributes & Content to keep them fresh
+                    _context.ProductAttributes.RemoveRange(existingProduct.Attributes);
+                    _context.ProductContents.RemoveRange(existingProduct.Contents);
+
+                    existingProduct.Attributes = importedProduct.Attributes;
+                    existingProduct.Contents = importedProduct.Contents;
+
+                    updatedCount++;
                 }
                 else
                 {
@@ -68,8 +65,7 @@ namespace CoreBooking.API.Controllers
             }
 
             await _context.SaveChangesAsync();
-
-            return Ok(new { Message = "Sync Complete", Added = addedCount, Updated = updatedCount });
+            return Ok(new { Message = "Dynamic Sync Complete", Added = addedCount, Updated = updatedCount });
         }
 
         [HttpPut("sync-availability/{productId}")]
@@ -78,10 +74,7 @@ namespace CoreBooking.API.Controllers
             var product = await _context.Products.Include(p => p.Provider).FirstOrDefaultAsync(p => p.Id == productId);
             if (product == null || product.Provider == null) return NotFound("Product or Provider not found.");
 
-            string supplierUrl = GetSupplierUrl(product.Provider.AdapterKey);
-
-            // CHANGED: Using the Gateway Client
-            product.AvailableQuantity = await _gatewayClient.CheckAvailabilityAsync(supplierUrl, product.ExternalProductId);
+            product.AvailableQuantity = await _gatewayClient.CheckAvailabilityAsync(product.Provider, product.ExternalProductId);
             await _context.SaveChangesAsync();
 
             return Ok(new { Message = $"Successfully synced availability for '{product.Name}'.", LiveStock = product.AvailableQuantity });

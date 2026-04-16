@@ -19,27 +19,18 @@ namespace CoreBooking.API.Controllers
             _gatewayClient = gatewayClient;
         }
 
-        private string GetSupplierUrl(string adapterKey) => adapterKey switch
-        {
-            "Meat" => "http://meatsupplier-api:8080",
-            "Veggie" => "http://veggiesupplier-api:8080",
-            "Spice" => "http://spicesupplier-api:8080",
-            _ => adapterKey
-        };
-
         [HttpPost("checkout")]
         public async Task<IActionResult> Checkout(int userId, int productId, int quantity)
         {
             var product = await _context.Products.Include(p => p.Provider).FirstOrDefaultAsync(p => p.Id == productId);
             if (product == null || product.Provider == null) return NotFound("Product not found locally.");
 
-            string supplierUrl = GetSupplierUrl(product.Provider.AdapterKey);
-
-            // CHANGED: Route calls through Gateway Client
-            int availableStock = await _gatewayClient.CheckAvailabilityAsync(supplierUrl, product.ExternalProductId);
+            // 1. Dynamic Availability Check
+            int availableStock = await _gatewayClient.CheckAvailabilityAsync(product.Provider, product.ExternalProductId);
             if (availableStock < quantity) return BadRequest("Insufficient external stock.");
 
-            string bookingRef = await _gatewayClient.PlaceOrderAsync(supplierUrl, product.ExternalProductId, quantity);
+            // 2. Dynamic Order Placement
+            string bookingRef = await _gatewayClient.PlaceOrderAsync(product.Provider, product.ExternalProductId, quantity);
 
             var order = new Order
             {
