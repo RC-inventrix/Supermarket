@@ -8,6 +8,7 @@ const routeTitles: Record<string, string> = {
   '/suppliers': 'Supplier Integration',
   '/products': 'Product Management',
   '/orders': 'Order Management',
+  '/cart': 'Shopping Cart', // <--- Added this line
 };
 
 interface DashboardLayoutProps {

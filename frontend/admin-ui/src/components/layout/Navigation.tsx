@@ -4,6 +4,7 @@ import {
   HiUsers,
   HiShoppingBag,
   HiClipboardList,
+  HiShoppingCart, // <--- Added this import
 } from 'react-icons/hi';
 
 const navItems = [
@@ -11,6 +12,7 @@ const navItems = [
   { to: '/suppliers', label: 'Supplier Integration', icon: HiUsers, exact: false },
   { to: '/products', label: 'Products', icon: HiShoppingBag, exact: false },
   { to: '/orders', label: 'Orders', icon: HiClipboardList, exact: false },
+  { to: '/cart', label: 'Cart', icon: HiShoppingCart, exact: false }, // <--- Added this line
 ];
 
 export function Navigation() {
