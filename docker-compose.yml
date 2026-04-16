@@ -24,17 +24,17 @@ services:
     ports:
       - "8080:8080"
 
-  frontend:
-    container_name: corebooking-frontend
-    build:
-      context: ./frontend
-      dockerfile: ./Dockerfile
-    environment:
-      VITE_API_BASE_URL: http://localhost:8080
-    depends_on:
-      - api
-    ports:
-      - "3000:80"
+  # frontend:
+  #   container_name: corebooking-frontend
+  #   build:
+  #     context: ./frontend
+  #     dockerfile: ./Dockerfile
+  #   environment:
+  #     VITE_API_BASE_URL: http://localhost:8080
+  #   depends_on:
+  #     - api
+  #   ports:
+  #     - "3000:80"
 
 volumes:
   sqlserver-data:
