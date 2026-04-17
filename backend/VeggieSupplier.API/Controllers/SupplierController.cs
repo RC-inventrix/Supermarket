@@ -31,6 +31,13 @@ namespace VeggieSupplier.API.Controllers
         [HttpGet("availability/{id}")]
         public IActionResult CheckAvailability(string id)
         {
+
+
+            // NEW: If no ID is provided, assume the React UI is just asking for a sample JSON structure!
+            if (string.IsNullOrEmpty(id))
+            {
+                return Ok(new { ExternalId = "SAMPLE-ID", AvailableStock = 99 });
+            }
             var product = _veggieCatalog.FirstOrDefault(p => p.ExternalId == id);
             if (product == null)
             {
@@ -66,6 +73,15 @@ namespace VeggieSupplier.API.Controllers
             string bookingRef = $"VEG-CONF-{Guid.NewGuid().ToString().Substring(0, 6).ToUpper()}";
 
             return Ok(new CheckoutResponse(true, bookingRef, $"Order successful. {request.Quantity} units deducted. New stock: {product.AvailableQuantity}"));
+        }
+
+        // 5. Endpoint: Checkout Sample (NEW FOR UI MAPPER)
+        // GET: /api/supplier/checkout
+        [HttpGet("checkout")]
+        public IActionResult GetCheckoutSample()
+        {
+            // Returns a dummy response so the React UI can map the confirmation path
+            return Ok(new CheckoutResponse(true, "SAMPLE-CONF-123456", "Sample order successful."));
         }
     }
 }

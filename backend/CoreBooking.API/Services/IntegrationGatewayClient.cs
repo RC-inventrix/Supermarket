@@ -77,6 +77,21 @@ namespace CoreBooking.API.Services
             return availableStock;
         }
 
+        // Add this new method to fetch the raw sample JSON
+        public async Task<string> FetchSampleJsonAsync(string supplierBaseUrl, string endpoint)
+        {
+            var request = new { SupplierBaseUrl = supplierBaseUrl, Endpoint = endpoint };
+            // Sends the request to your AdapterService gateway
+            var response = await _httpClient.PostAsJsonAsync("/api/gateway/fetch-sample", request);
+
+            if (!response.IsSuccessStatusCode)
+            {
+                throw new Exception("Failed to fetch sample JSON from the external supplier.");
+            }
+
+            // Return the raw JSON string so React can render the visual tree
+            return await response.Content.ReadAsStringAsync();
+        }
         public async Task<string> PlaceOrderAsync(Provider provider, string externalProductId, int quantity)
         {
             var request = new { SupplierBaseUrl = provider.SupplierBaseUrl, Endpoint = provider.CheckoutEndpoint, ExternalProductId = externalProductId, Quantity = quantity };

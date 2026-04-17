@@ -33,8 +33,6 @@ namespace AdapterService.API.Controllers
 
             var jsonContent = await response.Content.ReadAsStringAsync();
 
-            // The Gateway acts as a pure pass-through relay. It fetches the external JSON 
-            // and hands it cleanly back to the CoreBooking.API for database saving.
             return Content(jsonContent, "application/json");
         }
 
@@ -83,12 +81,30 @@ namespace AdapterService.API.Controllers
             var jsonContent = await response.Content.ReadAsStringAsync();
             return Content(jsonContent, "application/json");
         }
+
+        // 4. UNIVERSAL FETCH SAMPLE (NEW FIX)
+        // POST: /api/gateway/fetch-sample
+        [HttpPost("fetch-sample")]
+        public async Task<IActionResult> FetchSample([FromBody] GatewayRequest request)
+        {
+            var client = _httpClientFactory.CreateClient();
+            client.BaseAddress = new Uri(request.SupplierBaseUrl);
+
+            // Simply perform a GET request to whatever sample endpoint the UI sent
+            var response = await client.GetAsync(request.Endpoint);
+
+            if (!response.IsSuccessStatusCode)
+            {
+                return StatusCode((int)response.StatusCode, "Failed to fetch sample data from the external supplier.");
+            }
+
+            var jsonContent = await response.Content.ReadAsStringAsync();
+            return Content(jsonContent, "application/json");
+        }
     }
 
     // ---------------------------------------------------------
     // DATA TRANSFER OBJECTS (DTOs)
-    // These define the structure of the JSON that CoreBooking.API 
-    // will send to this Gateway.
     // ---------------------------------------------------------
 
     public class GatewayRequest

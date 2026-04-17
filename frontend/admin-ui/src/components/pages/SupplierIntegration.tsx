@@ -413,4 +413,4 @@ export function SupplierIntegration() {
       </Modal>
     </div>
   );
-}
+} 

@@ -31,6 +31,10 @@ namespace SpiceSupplier.API.Controllers
         [HttpGet("availability/{id}")]
         public IActionResult CheckAvailability(string id)
         {
+            if (string.IsNullOrEmpty(id))
+            {
+                return Ok(new { ExternalId = "SAMPLE-ID", AvailableStock = 99 });
+            }
             var product = _spiceCatalog.FirstOrDefault(p => p.ExternalId == id);
             if (product == null)
             {
@@ -66,6 +70,15 @@ namespace SpiceSupplier.API.Controllers
             string bookingRef = $"SPI-CONF-{Guid.NewGuid().ToString().Substring(0, 6).ToUpper()}";
 
             return Ok(new CheckoutResponse(true, bookingRef, $"Order successful. {request.Quantity} units deducted. New stock: {product.AvailableQuantity}"));
+        }
+
+        // 5. Endpoint: Checkout Sample (NEW FOR UI MAPPER)
+        // GET: /api/supplier/checkout
+        [HttpGet("checkout")]
+        public IActionResult GetCheckoutSample()
+        {
+            // Returns a dummy response so the React UI can map the confirmation path
+            return Ok(new CheckoutResponse(true, "SAMPLE-CONF-123456", "Sample order successful."));
         }
     }
 }
