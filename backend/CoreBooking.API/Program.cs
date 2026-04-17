@@ -44,6 +44,18 @@ if (app.Environment.IsDevelopment())
     app.UseSwaggerUI();
 }
 
+
+// ====================================================================
+// THE FIX: AUTOMATIC DOCKER MIGRATION
+// This ensures your Docker SQL Server updates its columns automatically 
+// whenever it detects new migration files in your project.
+// ====================================================================
+using (var scope = app.Services.CreateScope())
+{
+    var db = scope.ServiceProvider.GetRequiredService<CoreBookingDbContext>();
+    db.Database.Migrate();
+}
+
 // --- OPTIMIZED MIDDLEWARE PIPELINE ---
 app.UseHttpsRedirection();
 

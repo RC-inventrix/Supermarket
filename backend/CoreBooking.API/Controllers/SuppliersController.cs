@@ -31,7 +31,6 @@ namespace CoreBooking.API.Controllers
                 {
                     object? parsedMapping = null;
 
-                    // SAFE PARSING: If an old database row has bad JSON, it won't crash the whole API
                     if (!string.IsNullOrWhiteSpace(p.MappingConfigJson))
                     {
                         try
@@ -47,14 +46,15 @@ namespace CoreBooking.API.Controllers
                     return new
                     {
                         Id = p.Id,
-                        Name = p.Name,
+                        Name = p.Name ?? "Unknown Supplier",
                         CategoryId = p.CategoryId,
-                        SupplierBaseUrl = p.SupplierBaseUrl,
-                        CatalogEndpoint = p.CatalogEndpoint,
-                        AvailabilityEndpoint = p.AvailabilityEndpoint,
-                        CheckoutEndpoint = p.CheckoutEndpoint,
-                        IsActive = true, // Defaulting to true so the React UI doesn't break
-                        CreatedAt = DateTime.UtcNow, // Defaulting to satisfy React UI
+                        // THE FIX: Gracefully handle NULLs from old database records
+                        SupplierBaseUrl = p.SupplierBaseUrl ?? string.Empty,
+                        CatalogEndpoint = p.CatalogEndpoint ?? string.Empty,
+                        AvailabilityEndpoint = p.AvailabilityEndpoint ?? string.Empty,
+                        CheckoutEndpoint = p.CheckoutEndpoint ?? string.Empty,
+                        IsActive = true,
+                        CreatedAt = DateTime.UtcNow,
                         MappingConfig = parsedMapping
                     };
                 });
@@ -63,7 +63,6 @@ namespace CoreBooking.API.Controllers
             }
             catch (Exception ex)
             {
-                // Returns a clear error message instead of failing silently
                 return StatusCode(500, new { Message = "Failed to load suppliers from database.", Details = ex.Message });
             }
         }

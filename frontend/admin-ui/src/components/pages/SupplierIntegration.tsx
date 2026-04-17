@@ -24,7 +24,7 @@ import type { Supplier, FieldMapping } from '../../types';
 // Mock Categories (Replace with API fetch later)
 const CATEGORIES = [
   { id: 1, name: 'Meat' },
-  { id: 2, name: 'Vegetables' }, // <--- Changed from 'Produce' to 'Vegetables'
+  { id: 2, name: 'Vegetables' },
   { id: 3, name: 'Spices' },
 ];
 
@@ -140,7 +140,8 @@ function MappingRow({ fieldName, fieldLabel, mappedPath, onSelectFromTree, isSel
       <div className="flex-1 rounded-md border border-dashed border-gray-300 bg-gray-50 px-2 py-1 font-mono text-[10px] text-gray-600 truncate">
         {mappedPath || <span className="italic text-gray-400">not mapped</span>}
       </div>
-      <Button variant={isSelecting ? 'primary' : 'outline'} size="sm" onClick={() => onSelectFromTree(fieldName)} className="text-xs py-1 px-2">
+      {/* FIX: Added type="button" so clicking this doesn't submit the form! */}
+      <Button type="button" variant={isSelecting ? 'primary' : 'outline'} size="sm" onClick={() => onSelectFromTree(fieldName)} className="text-xs py-1 px-2">
         {isSelecting ? 'Selecting…' : 'Pick'}
       </Button>
     </div>
@@ -218,11 +219,25 @@ export function SupplierIntegration() {
   );
 
   const onPreSubmit = (data: SupplierFormData) => {
-    // Validate mapping before submitting
-    if (!mapping.idPath || !mapping.namePath || !mapping.pricePath) {
-      toast.error('Please map at least the Product ID, Name, and Price from the Catalog before saving.');
+    // FIX: Dynamic validation logic checking each tab sequentially
+    if (!mapping.idPath || !mapping.namePath || !mapping.pricePath || !mapping.catalogQuantityPath) {
+      toast.error('Please map Product ID, Name, Price, and Quantity paths in the Catalog tab before saving.');
+      setActiveTab('catalog'); // Auto-switch to the tab missing data
       return;
     }
+
+    if (!mapping.availabilityQuantityPath) {
+      toast.error('Please map the Live Stock Path in the Availability tab before saving.');
+      setActiveTab('availability');
+      return;
+    }
+
+    if (!mapping.checkoutConfirmationPath) {
+      toast.error('Please map the Confirmation ID Path in the Checkout tab before saving.');
+      setActiveTab('checkout');
+      return;
+    }
+
     setPendingSupplierData(data);
     setConfirmModalOpen(true);
   };
@@ -413,4 +428,4 @@ export function SupplierIntegration() {
       </Modal>
     </div>
   );
-} 
+}
