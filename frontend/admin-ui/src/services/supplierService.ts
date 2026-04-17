@@ -43,4 +43,10 @@ export const supplierService = {
     const response = await api.post<{ imported: number }>(`/api/suppliers/${id}/import`);
     return response.data;
   },
+
+  // NEW FIX: Added endpoint to sync availability
+  syncAvailability: async (id: number): Promise<{ synced: number; updated: number }> => {
+    const response = await api.post<{ synced: number; updated: number }>(`/api/suppliers/${id}/sync-availability`);
+    return response.data;
+  },
 };

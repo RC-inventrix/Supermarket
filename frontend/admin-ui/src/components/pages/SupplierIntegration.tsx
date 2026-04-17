@@ -140,7 +140,6 @@ function MappingRow({ fieldName, fieldLabel, mappedPath, onSelectFromTree, isSel
       <div className="flex-1 rounded-md border border-dashed border-gray-300 bg-gray-50 px-2 py-1 font-mono text-[10px] text-gray-600 truncate">
         {mappedPath || <span className="italic text-gray-400">not mapped</span>}
       </div>
-      {/* FIX: Added type="button" so clicking this doesn't submit the form! */}
       <Button type="button" variant={isSelecting ? 'primary' : 'outline'} size="sm" onClick={() => onSelectFromTree(fieldName)} className="text-xs py-1 px-2">
         {isSelecting ? 'Selecting…' : 'Pick'}
       </Button>
@@ -219,10 +218,9 @@ export function SupplierIntegration() {
   );
 
   const onPreSubmit = (data: SupplierFormData) => {
-    // FIX: Dynamic validation logic checking each tab sequentially
     if (!mapping.idPath || !mapping.namePath || !mapping.pricePath || !mapping.catalogQuantityPath) {
       toast.error('Please map Product ID, Name, Price, and Quantity paths in the Catalog tab before saving.');
-      setActiveTab('catalog'); // Auto-switch to the tab missing data
+      setActiveTab('catalog');
       return;
     }
 
@@ -264,6 +262,16 @@ export function SupplierIntegration() {
     }
   };
 
+  // NEW FIX: Sync availability handler
+  const handleSyncAvailability = async (supplier: Supplier) => {
+    try {
+      const result = await supplierService.syncAvailability(supplier.id);
+      toast.success(`Synced stock for ${result.synced} products. ${result.updated} were updated!`);
+    } catch {
+      toast.error('Failed to sync availability');
+    }
+  };
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
@@ -296,6 +304,10 @@ export function SupplierIntegration() {
                   <p className="mt-0.5 text-xs text-gray-500">{supplier.supplierBaseUrl}</p>
                 </div>
                 <div className="flex gap-2">
+                  {/* NEW FIX: Added Sync Stock button next to Import */}
+                  <Button variant="outline" size="sm" onClick={() => handleSyncAvailability(supplier)}>
+                    <HiRefresh className="h-4 w-4" /> Sync Stock
+                  </Button>
                   <Button variant="outline" size="sm" onClick={() => handleImport(supplier)}>
                     <HiRefresh className="h-4 w-4" /> Import
                   </Button>

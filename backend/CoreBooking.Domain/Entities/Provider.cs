@@ -15,7 +15,7 @@ public class Provider
     // (e.g., {"IdPath": "product.id", "NamePath": "details.title", ...})
     public string MappingConfigJson { get; set; } = string.Empty;
     // ---------------------------------------------
-
+    public bool IsActive { get; set; } = true;
     public int CategoryId { get; set; }
     public Category? Category { get; set; }
 

@@ -47,6 +47,12 @@ namespace CoreBooking.Infrastructure.Data
                 .HasForeignKey(p => p.CategoryId)
                 .OnDelete(DeleteBehavior.Restrict);
 
+            modelBuilder.Entity<Category>().HasData(
+                new Category { Id = 1, Name = "Meat" },
+                new Category { Id = 2, Name = "Vegetables" },
+                new Category { Id = 3, Name = "Spices" }
+            );
+
             // CHANGED: Removed the old AdapterKey unique index rule because 
             // the AdapterKey property no longer exists in our architecture!
         }
