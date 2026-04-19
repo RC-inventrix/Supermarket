@@ -163,7 +163,14 @@ export function SupplierIntegration() {
 
   // JSON Mapper State
   const [activeTab, setActiveTab] = useState<'catalog' | 'availability' | 'checkout'>('catalog');
-  const [sampleJsons, setSampleJsons] = useState<{ catalog: any; availability: any; checkout: any }>({ catalog: null, availability: null, checkout: null });
+  
+  // THE FIX: Replaced "any" with Record<string, unknown>
+  const [sampleJsons, setSampleJsons] = useState<{ 
+    catalog: Record<string, unknown> | null; 
+    availability: Record<string, unknown> | null; 
+    checkout: Record<string, unknown> | null; 
+  }>({ catalog: null, availability: null, checkout: null });
+  
   const [fetchingJson, setFetchingJson] = useState(false);
   const [activePickField, setActivePickField] = useState<keyof FieldMapping | null>(null);
   
@@ -262,7 +269,6 @@ export function SupplierIntegration() {
     }
   };
 
-  // NEW FIX: Sync availability handler
   const handleSyncAvailability = async (supplier: Supplier) => {
     try {
       const result = await supplierService.syncAvailability(supplier.id);
@@ -304,7 +310,6 @@ export function SupplierIntegration() {
                   <p className="mt-0.5 text-xs text-gray-500">{supplier.supplierBaseUrl}</p>
                 </div>
                 <div className="flex gap-2">
-                  {/* NEW FIX: Added Sync Stock button next to Import */}
                   <Button variant="outline" size="sm" onClick={() => handleSyncAvailability(supplier)}>
                     <HiRefresh className="h-4 w-4" /> Sync Stock
                   </Button>

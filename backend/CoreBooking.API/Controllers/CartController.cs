@@ -21,42 +21,57 @@ namespace CoreBooking.API.Controllers
         {
             var cart = await _context.Carts
                 .Include(c => c.Items)
-                .ThenInclude(i => i.Product)
+                    .ThenInclude(i => i.Product)
+                        .ThenInclude(p => p.Provider) // Fetches the Supplier!
                 .FirstOrDefaultAsync(c => c.UserId == userId);
 
             if (cart == null)
             {
-                // Return an empty logical cart if the user hasn't added anything yet
-                return Ok(new { UserId = userId, Items = new List<object>() });
+                return Ok(new { UserId = userId, TotalPrice = 0, Items = new List<object>() });
             }
 
-            return Ok(cart);
+            // THE FIX: Map to DTO to prevent JSON cycle crashes and provide a clean payload for React
+            var result = new
+            {
+                Id = cart.Id,
+                UserId = cart.UserId,
+                TotalPrice = cart.TotalPrice,
+                Items = cart.Items.Select(i => new
+                {
+                    Id = i.Id,
+                    ProductId = i.ProductId,
+                    Name = i.Product?.Name ?? "Unknown Product",
+                    Price = i.UnitPrice,
+                    Quantity = i.Quantity,
+                    Supplier = i.Product?.Provider?.Name ?? "Unknown Supplier"
+                })
+            };
+
+            return Ok(result);
         }
 
         [HttpPost("{userId}/items")]
         public async Task<IActionResult> AddToCart(int userId, [FromBody] CartItemRequest request)
         {
-            // 1. Ensure the product actually exists
             var product = await _context.Products.FindAsync(request.ProductId);
             if (product == null) return NotFound("Product not found.");
 
-            // 2. Find existing cart, or create a new one
             var cart = await _context.Carts
                 .Include(c => c.Items)
                 .FirstOrDefaultAsync(c => c.UserId == userId);
 
             if (cart == null)
             {
-                cart = new Cart { UserId = userId };
+                cart = new Cart { UserId = userId, TotalPrice = 0 };
                 _context.Carts.Add(cart);
-                await _context.SaveChangesAsync(); // Save to generate the Cart Id
+                await _context.SaveChangesAsync();
             }
 
-            // 3. Check if product is already in the cart
             var existingItem = cart.Items.FirstOrDefault(i => i.ProductId == request.ProductId);
             if (existingItem != null)
             {
                 existingItem.Quantity += request.Quantity;
+                existingItem.UnitPrice = product.Price;
             }
             else
             {
@@ -64,10 +79,14 @@ namespace CoreBooking.API.Controllers
                 {
                     CartId = cart.Id,
                     ProductId = request.ProductId,
-                    Quantity = request.Quantity
+                    Quantity = request.Quantity,
+                    UnitPrice = product.Price
                 };
                 _context.CartItems.Add(newItem);
+                cart.Items.Add(newItem);
             }
+
+            cart.TotalPrice = cart.Items.Sum(i => i.UnitPrice * i.Quantity);
 
             await _context.SaveChangesAsync();
             return Ok(new { Message = "Added to cart." });
@@ -76,13 +95,20 @@ namespace CoreBooking.API.Controllers
         [HttpDelete("{userId}/items/{cartItemId}")]
         public async Task<IActionResult> RemoveFromCart(int userId, int cartItemId)
         {
-            var item = await _context.CartItems
-                .Include(i => i.Cart)
-                .FirstOrDefaultAsync(i => i.Id == cartItemId && i.Cart.UserId == userId);
+            var cart = await _context.Carts
+                .Include(c => c.Items)
+                .FirstOrDefaultAsync(c => c.UserId == userId);
 
+            if (cart == null) return NotFound("Cart not found.");
+
+            var item = cart.Items.FirstOrDefault(i => i.Id == cartItemId);
             if (item == null) return NotFound("Item not found in this user's cart.");
 
             _context.CartItems.Remove(item);
+            cart.Items.Remove(item);
+
+            cart.TotalPrice = cart.Items.Sum(i => i.UnitPrice * i.Quantity);
+
             await _context.SaveChangesAsync();
 
             return Ok(new { Message = "Item removed from cart." });

@@ -1,36 +1,42 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { HiTrash, HiCheckCircle, HiShoppingCart, HiInformationCircle } from 'react-icons/hi';
 import { Card } from '../ui/Card';
 import { Button } from '../ui/Button';
 import { Modal } from '../ui/Modal';
 import { formatCurrency } from '../../utils/helpers';
 import { toast } from 'react-toastify';
-
-// Mock data for the UI implementation
-interface CartItem {
-  id: number;
-  name: string;
-  price: number;
-  quantity: number;
-  supplier: string;
-}
-
-const mockInitialCart: CartItem[] = [
-  { id: 1, name: 'Premium Beef Steak', price: 25.99, quantity: 2, supplier: 'Meat Supplier' },
-  { id: 2, name: 'Organic Carrots', price: 4.50, quantity: 5, supplier: 'Veggie API' },
-  { id: 3, name: 'Black Peppercorns', price: 3.20, quantity: 1, supplier: 'Spice API' },
-];
+import { cartService, type CartItem } from '../../services/cartService';
 
 export function Cart() {
-  const [cartItems, setCartItems] = useState<CartItem[]>(mockInitialCart);
-  const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set(mockInitialCart.map(i => i.id)));
+  const [cartItems, setCartItems] = useState<CartItem[]>([]);
+  const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
+  const [isLoading, setIsLoading] = useState(true);
   
   // Modal states
   const [isConfirmOpen, setIsConfirmOpen] = useState(false);
   const [isSuccessOpen, setIsSuccessOpen] = useState(false);
   const [isPlacingOrder, setIsPlacingOrder] = useState(false);
 
-  // Calculations
+  const MOCK_USER_ID = 1;
+
+  // --- DATABASE FETCH ---
+  const loadCart = async () => {
+    try {
+      setIsLoading(true);
+      const cart = await cartService.getCart(MOCK_USER_ID);
+      setCartItems(cart.items);
+      setSelectedIds(new Set(cart.items.map(i => i.id)));
+    } catch {
+      toast.error('Failed to load cart from database.');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    loadCart();
+  }, []);
+
   const selectedItems = cartItems.filter(item => selectedIds.has(item.id));
   const totalAmount = useMemo(() => {
     return selectedItems.reduce((sum, item) => sum + item.price * item.quantity, 0);
@@ -38,7 +44,6 @@ export function Cart() {
 
   const allSelected = cartItems.length > 0 && selectedIds.size === cartItems.length;
 
-  // Handlers
   const toggleSelectAll = () => {
     if (allSelected) {
       setSelectedIds(new Set());
@@ -54,33 +59,65 @@ export function Cart() {
     setSelectedIds(next);
   };
 
-  const removeItem = (id: number) => {
+  const removeItem = async (id: number) => {
     setCartItems(prev => prev.filter(item => item.id !== id));
     const nextSelected = new Set(selectedIds);
     nextSelected.delete(id);
     setSelectedIds(nextSelected);
     toast.info('Item removed from cart');
+
+    try {
+      await cartService.removeItem(MOCK_USER_ID, id);
+    } catch {
+      toast.error('Failed to remove item from server.');
+      loadCart();
+    }
   };
 
-  const clearCart = () => {
+  const clearCart = async () => {
+    const itemsToDelete = [...cartItems];
     setCartItems([]);
     setSelectedIds(new Set());
     toast.info('Cart cleared');
+
+    try {
+      await Promise.all(itemsToDelete.map(item => cartService.removeItem(MOCK_USER_ID, item.id)));
+    } catch {
+      toast.error('Failed to clear some items from server.');
+      loadCart();
+    }
   };
 
+  // THE FIX: Plugs the "Place Order" button securely into the backend API!
   const handlePlaceOrder = async () => {
     setIsPlacingOrder(true);
-    // Simulate API call
-    await new Promise(resolve => setTimeout(resolve, 1500));
     
-    // Remove ordered items from cart
-    setCartItems(prev => prev.filter(item => !selectedIds.has(item.id)));
-    setSelectedIds(new Set());
-    
-    setIsPlacingOrder(false);
-    setIsConfirmOpen(false);
-    setIsSuccessOpen(true); // Show beautiful success modal
+    try {
+      const itemsToCheckout = Array.from(selectedIds);
+      
+      // Makes the official call to the Order Controller
+      await cartService.checkoutCart(MOCK_USER_ID, itemsToCheckout);
+
+      setCartItems(prev => prev.filter(item => !selectedIds.has(item.id)));
+      setSelectedIds(new Set());
+      
+      setIsConfirmOpen(false);
+      setIsSuccessOpen(true);
+    } catch (error: any) {
+      toast.error(error.response?.data || 'Failed to place order. Insufficient stock.');
+      loadCart();
+    } finally {
+      setIsPlacingOrder(false);
+    }
   };
+
+  if (isLoading) {
+    return (
+      <div className="flex h-64 items-center justify-center">
+        <div className="h-8 w-8 animate-spin rounded-full border-4 border-blue-600 border-t-transparent" />
+      </div>
+    );
+  }
 
   if (cartItems.length === 0 && !isSuccessOpen) {
     return (
@@ -96,7 +133,6 @@ export function Cart() {
 
   return (
     <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
-      {/* Left Column: Cart Items */}
       <div className="space-y-4 lg:col-span-2">
         <div className="flex items-center justify-between">
           <label className="flex items-center gap-2 cursor-pointer">
@@ -148,7 +184,6 @@ export function Cart() {
         ))}
       </div>
 
-      {/* Right Column: Order Summary */}
       <div className="lg:col-span-1">
         <Card>
           <h3 className="mb-4 text-lg font-semibold text-gray-900">Order Summary</h3>
@@ -179,7 +214,6 @@ export function Cart() {
         </Card>
       </div>
 
-      {/* Confirmation Modal */}
       <Modal isOpen={isConfirmOpen} onClose={() => !isPlacingOrder && setIsConfirmOpen(false)} title="Confirm Order">
         <div className="flex flex-col items-center justify-center p-4 text-center">
           <HiInformationCircle className="mb-4 h-12 w-12 text-blue-500" />
@@ -198,7 +232,6 @@ export function Cart() {
         </div>
       </Modal>
 
-      {/* Success Modal */}
       <Modal isOpen={isSuccessOpen} onClose={() => setIsSuccessOpen(false)} title="">
         <div className="flex flex-col items-center justify-center py-6 text-center">
           <div className="mb-4 rounded-full bg-green-100 p-4">
@@ -206,7 +239,7 @@ export function Cart() {
           </div>
           <h2 className="text-2xl font-bold text-gray-900">Order Placed Successfully!</h2>
           <p className="mt-2 text-gray-500">
-            The order has been routed to the respective suppliers via the Adapter Gateway.
+            The order has been successfully routed to the respective suppliers via the Adapter Gateway.
           </p>
           <Button className="mt-8 px-8" onClick={() => setIsSuccessOpen(false)}>
             Continue

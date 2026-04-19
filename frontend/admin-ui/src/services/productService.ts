@@ -1,5 +1,15 @@
 import api from './api';
-import type { Product, Category, CreateProductDto, ProductFilter, PaginatedResponse } from '../types';
+import type { Product, Category, ProductFilter, PaginatedResponse } from '../types';
+
+export interface CreateProductDto {
+  name: string;
+  price: number;
+  availableQuantity: number;
+  categoryId: number;
+  providerId?: number | null;     // Changed to optional
+  newProviderName?: string;
+  description?: string;
+}
 
 export const productService = {
   getAll: async (filter: ProductFilter): Promise<PaginatedResponse<Product>> => {
@@ -37,4 +47,16 @@ export const productService = {
     const response = await api.post<Category>('/api/categories', { name, description });
     return response.data;
   },
+};
+
+// --- NEW CART SERVICE ---
+export const cartService = {
+  // Uses the endpoint from CartController: POST /api/cart/{userId}/items
+  addToCart: async (userId: number, productId: number, quantity: number): Promise<{ message: string }> => {
+    const response = await api.post<{ message: string }>(`/api/cart/${userId}/items`, {
+      productId,
+      quantity
+    });
+    return response.data;
+  }
 };

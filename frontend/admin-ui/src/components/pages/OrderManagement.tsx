@@ -6,12 +6,11 @@ import { Input } from '../ui/Input';
 import { Table, Pagination } from '../ui/Table';
 import { StatusBadge } from '../ui/Badge';
 import { Modal } from '../ui/Modal';
-import { orderService } from '../../services/orderService';
-import { useApiCall } from '../../hooks/useApiCall';
-import type { Order, OrderStatus, OrderFilter, PaginatedResponse } from '../../types';
-import { ORDER_STATUSES, DEFAULT_PAGE_SIZE } from '../../utils/constants';
+import { orderService, type Order, type OrderFilter, type PaginatedResponse } from '../../services/orderService';
 import { formatCurrency, formatDate } from '../../utils/helpers';
 import { toast } from 'react-toastify';
+
+const DEFAULT_PAGE_SIZE = 10;
 
 export function OrderManagement() {
   const [orders, setOrders] = useState<PaginatedResponse<Order> | null>(null);
@@ -20,7 +19,6 @@ export function OrderManagement() {
   const [search, setSearch] = useState('');
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
   const [detailsOpen, setDetailsOpen] = useState(false);
-  const { execute: updateStatus, loading: updating } = useApiCall<Order>();
 
   const fetchOrders = async () => {
     setLoading(true);
@@ -44,19 +42,12 @@ export function OrderManagement() {
     setFilter((prev) => ({ ...prev, search, page: 1 }));
   };
 
-  const handleStatusChange = async (order: Order, status: OrderStatus) => {
-    await updateStatus(
-      () => orderService.updateStatus(order.id, { status }),
-      `Order #${order.id} status updated to ${status}`
-    );
-    fetchOrders();
-  };
-
   const openDetails = (order: Order) => {
     setSelectedOrder(order);
     setDetailsOpen(true);
   };
 
+  // THE FIX: Updated columns to match new requirements
   const columns = [
     {
       header: 'Order #',
@@ -70,6 +61,10 @@ export function OrderManagement() {
         </button>
       ),
     },
+    { 
+      header: 'Confirmation Code', 
+      cell: (row: Order) => <span className="font-mono text-xs text-gray-600">{row.confirmationCode}</span>
+    },
     { header: 'Customer', accessorKey: 'customerName' as keyof Order },
     {
       header: 'Status',
@@ -82,24 +77,7 @@ export function OrderManagement() {
     {
       header: 'Date',
       cell: (row: Order) => formatDate(row.createdAt),
-    },
-    {
-      header: 'Update Status',
-      cell: (row: Order) => (
-        <select
-          className="rounded-md border border-gray-300 px-2 py-1 text-xs focus:outline-none focus:ring-2 focus:ring-blue-500"
-          value={row.status}
-          onChange={(e) => handleStatusChange(row, e.target.value as OrderStatus)}
-          disabled={updating}
-        >
-          {ORDER_STATUSES.map((s) => (
-            <option key={s} value={s}>
-              {s}
-            </option>
-          ))}
-        </select>
-      ),
-    },
+    }
   ];
 
   return (
@@ -107,7 +85,7 @@ export function OrderManagement() {
       <div className="flex flex-wrap items-center gap-3">
         <div className="flex flex-1 items-center gap-2">
           <Input
-            placeholder="Search by customer name..."
+            placeholder="Search by Confirmation Code or Order ID..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
@@ -117,24 +95,6 @@ export function OrderManagement() {
             <HiSearch className="h-4 w-4" />
           </Button>
         </div>
-        <select
-          className="rounded-md border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-          value={filter.status ?? ''}
-          onChange={(e) =>
-            setFilter((prev) => ({
-              ...prev,
-              status: (e.target.value as OrderStatus) || undefined,
-              page: 1,
-            }))
-          }
-        >
-          <option value="">All Statuses</option>
-          {ORDER_STATUSES.map((s) => (
-            <option key={s} value={s}>
-              {s}
-            </option>
-          ))}
-        </select>
         <Button variant="outline" onClick={fetchOrders}>
           <HiRefresh className="h-4 w-4" />
           Refresh
@@ -182,8 +142,8 @@ export function OrderManagement() {
                 <span className="ml-2 font-medium">{selectedOrder.customerName}</span>
               </div>
               <div>
-                <span className="text-gray-500">Email:</span>
-                <span className="ml-2">{selectedOrder.customerEmail}</span>
+                <span className="text-gray-500">Confirm Code:</span>
+                <span className="ml-2 font-mono text-xs">{selectedOrder.confirmationCode}</span>
               </div>
               <div>
                 <span className="text-gray-500">Status:</span>

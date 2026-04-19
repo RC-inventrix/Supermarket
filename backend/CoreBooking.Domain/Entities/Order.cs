@@ -8,6 +8,8 @@ public class Order
     public string Status { get; set; } = string.Empty;
     public string? ExternalBookingReference { get; set; }
 
-    //public User? User { get; set; }
+    // NEW: Added to track when the order was placed
+    public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+
     public ICollection<OrderItem> Items { get; set; } = new List<OrderItem>();
 }

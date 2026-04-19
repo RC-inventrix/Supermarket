@@ -1,18 +1,16 @@
 export interface Product {
   id: number;
+  providerId: number;
+  categoryId: number;
+  externalProductId: string;
   name: string;
-  description: string;
   price: number;
   availableQuantity: number;
-  categoryId: number | null;
-  categoryName: string | null;
-  supplierId: number | null;
-  supplierName: string | null;
-  attributes: ProductAttribute[];
-  createdAt: string;
-  updatedAt: string;
+  categoryName?: string | null;
+  supplierName?: string | null;
+  description?: string | null;
+  updatedAt?: string | null;
 }
-
 export interface ProductAttribute {
   id: number;
   productId: number;
