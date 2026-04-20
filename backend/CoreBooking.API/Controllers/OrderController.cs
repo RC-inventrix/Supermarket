@@ -19,7 +19,6 @@ namespace CoreBooking.API.Controllers
             _gatewayClient = gatewayClient;
         }
 
-        // --- NEW FIX: Get All Orders for the UI ---
         [HttpGet]
         public async Task<IActionResult> GetAll([FromQuery] int page = 1, [FromQuery] int pageSize = 10, [FromQuery] string? search = null)
         {
@@ -30,7 +29,6 @@ namespace CoreBooking.API.Controllers
                         .ThenInclude(i => i.Product)
                     .AsQueryable();
 
-                // Search by Confirmation Code or Order ID
                 if (!string.IsNullOrEmpty(search))
                 {
                     query = query.Where(o => (o.ExternalBookingReference != null && o.ExternalBookingReference.Contains(search))
@@ -47,9 +45,9 @@ namespace CoreBooking.API.Controllers
                     .Select(o => new
                     {
                         id = o.Id,
-                        customerName = "admin", // Hardcoded per requirement
+                        customerName = "admin",
                         totalAmount = o.TotalAmount,
-                        status = "Confirmed",   // Hardcoded per requirement (Status = 1)
+                        status = "Confirmed",
                         confirmationCode = o.ExternalBookingReference ?? "N/A",
                         createdAt = o.CreatedAt,
                         items = o.Items.Select(i => new
@@ -129,19 +127,39 @@ namespace CoreBooking.API.Controllers
                 var product = item.Product;
                 if (product == null || product.Provider == null) continue;
 
-                // Dynamic Availability Check
-                int availableStock = await _gatewayClient.CheckAvailabilityAsync(product.Provider, product.ExternalProductId);
-                if (availableStock < item.Quantity)
+                // THE FIX: Check if this is a manual (internal) product with no Base URL
+                bool isInternalProduct = string.IsNullOrWhiteSpace(product.Provider.SupplierBaseUrl);
+
+                if (isInternalProduct)
                 {
-                    return BadRequest($"Insufficient stock for {product.Name}. Only {availableStock} left at supplier.");
+                    // --- INTERNAL PRODUCT LOGIC ---
+                    if (product.AvailableQuantity < item.Quantity)
+                    {
+                        return BadRequest($"Insufficient stock for {product.Name}. Only {product.AvailableQuantity} left in local inventory.");
+                    }
+
+                    // Deduct local database stock directly
+                    product.AvailableQuantity -= item.Quantity;
+
+                    // Generate a local confirmation code
+                    string localBookingRef = $"LOCAL-CONF-{Guid.NewGuid().ToString().Substring(0, 6).ToUpper()}";
+                    externalRefs.Add(localBookingRef);
                 }
+                else
+                {
+                    // --- EXTERNAL PRODUCT LOGIC (via Gateway) ---
+                    int availableStock = await _gatewayClient.CheckAvailabilityAsync(product.Provider, product.ExternalProductId);
+                    if (availableStock < item.Quantity)
+                    {
+                        return BadRequest($"Insufficient stock for {product.Name}. Only {availableStock} left at external supplier.");
+                    }
 
-                // Dynamic Order Placement
-                string bookingRef = await _gatewayClient.PlaceOrderAsync(product.Provider, product.ExternalProductId, item.Quantity);
-                externalRefs.Add(bookingRef);
+                    string bookingRef = await _gatewayClient.PlaceOrderAsync(product.Provider, product.ExternalProductId, item.Quantity);
+                    externalRefs.Add(bookingRef);
 
-                // Reduce local stock cache to stay synced
-                product.AvailableQuantity -= item.Quantity;
+                    // Reduce local stock cache to stay synced with external supplier
+                    product.AvailableQuantity -= item.Quantity;
+                }
 
                 totalAmount += (item.UnitPrice * item.Quantity);
 
