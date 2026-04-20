@@ -27,17 +27,17 @@ namespace VeggieSupplier.API.Controllers
         }
 
         // 3. Endpoint: Check Availability
-        // GET: /api/supplier/availability/{id}
-        [HttpGet("availability/{id}")]
-        public IActionResult CheckAvailability(string id)
+        // GET: /api/supplier/availability/{id?}  <-- Notice the '?' making the ID optional
+        [HttpGet("availability/{id?}")]
+        public IActionResult CheckAvailability(string? id)
         {
-
-
             // NEW: If no ID is provided, assume the React UI is just asking for a sample JSON structure!
             if (string.IsNullOrEmpty(id))
             {
                 return Ok(new { ExternalId = "SAMPLE-ID", AvailableStock = 99 });
             }
+
+            // REAL LOGIC:
             var product = _veggieCatalog.FirstOrDefault(p => p.ExternalId == id);
             if (product == null)
             {
