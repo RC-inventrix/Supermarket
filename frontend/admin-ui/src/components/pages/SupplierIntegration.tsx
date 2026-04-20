@@ -29,34 +29,59 @@ const CATEGORIES = [
 ];
 
 // ─── SMART AUTO-MAPPING HEURISTICS ───────────────────────────────────────────
-const autoMapCatalog = (json: Record<string, unknown>) => {
-  let rootPath = '';
-  let sampleItem: any = null;
-  let itemPathPrefix = '';
 
-  // 1. Identify the Array Root
-  if (Array.isArray(json)) {
-    rootPath = '';
-    sampleItem = json[0];
-    itemPathPrefix = '[0].';
-  } else {
-    for (const key of Object.keys(json)) {
-      if (Array.isArray(json[key])) {
-        rootPath = key;
-        sampleItem = json[key][0];
-        itemPathPrefix = `${key}[0].`;
-        break;
+// Helper 1: Recursively find the first array in the JSON and return its path
+function findArrayPath(obj: any, currentPath = ''): { path: string, array: any[] } | null {
+  if (Array.isArray(obj)) {
+    return { path: currentPath, array: obj };
+  }
+  if (obj !== null && typeof obj === 'object') {
+    for (const key of Object.keys(obj)) {
+      const newPath = currentPath ? `${currentPath}.${key}` : key;
+      const result = findArrayPath(obj[key], newPath);
+      if (result) return result;
+    }
+  }
+  return null;
+}
+
+// Helper 2: Flatten a nested object to dot-notation keys (e.g. core_info.title)
+function flattenObject(obj: any, prefix = ''): Record<string, any> {
+  let flat: Record<string, any> = {};
+  for (const key in obj) {
+    if (Object.prototype.hasOwnProperty.call(obj, key)) {
+      const newKey = prefix ? `${prefix}.${key}` : key;
+      if (obj[key] !== null && typeof obj[key] === 'object' && !Array.isArray(obj[key])) {
+        Object.assign(flat, flattenObject(obj[key], newKey));
+      } else {
+        flat[newKey] = obj[key];
       }
     }
   }
+  return flat;
+}
+
+const autoMapCatalog = (json: Record<string, unknown>) => {
+  const arrayMatch = findArrayPath(json);
+  if (!arrayMatch || arrayMatch.array.length === 0) return null;
+
+  const rootPath = arrayMatch.path;
+  const sampleItem = arrayMatch.array[0];
+  const itemPathPrefix = rootPath ? `${rootPath}[0].` : '[0].';
 
   if (!sampleItem || typeof sampleItem !== 'object') return null;
 
-  // 2. Pattern Match Keys
-  const keys = Object.keys(sampleItem);
+  // Flatten the item so we can scan nested keys easily
+  const flatItem = flattenObject(sampleItem);
+  const flatKeys = Object.keys(flatItem);
+
+  // Pattern Match Keys (only testing the last segment of the path so parents like "price_info" don't falsely trigger)
   const findKey = (patterns: RegExp[]) => {
     for (const pattern of patterns) {
-      const match = keys.find(k => pattern.test(k));
+      const match = flatKeys.find(k => {
+        const lastSegment = k.split('.').pop() || k;
+        return pattern.test(lastSegment);
+      });
       if (match) return `${itemPathPrefix}${match}`;
     }
     return '';
@@ -64,7 +89,7 @@ const autoMapCatalog = (json: Record<string, unknown>) => {
 
   return {
     arrayRootPath: rootPath,
-    idPath: findKey([/^id$/i, /uuid/i, /code/i, /externalid/i]),
+    idPath: findKey([/^id$/i, /uuid/i, /code/i, /externalid/i, /item_id/i]),
     namePath: findKey([/name/i, /title/i]),
     pricePath: findKey([/price/i, /cost/i, /baseprice/i]),
     catalogQuantityPath: findKey([/quant/i, /qty/i, /stock/i, /avail/i]),
@@ -74,15 +99,25 @@ const autoMapCatalog = (json: Record<string, unknown>) => {
 
 const autoMapAvailability = (json: Record<string, unknown>) => {
   if (typeof json !== 'object' || json === null) return null;
-  const keys = Object.keys(json);
-  const stockKey = keys.find(k => /stock/i.test(k) || /quant/i.test(k) || /avail/i.test(k));
+  const flatJson = flattenObject(json);
+  const flatKeys = Object.keys(flatJson);
+  
+  const stockKey = flatKeys.find(k => {
+    const lastSegment = k.split('.').pop() || k;
+    return /stock/i.test(lastSegment) || /quant/i.test(lastSegment) || /avail/i.test(lastSegment);
+  });
   return stockKey ? { availabilityQuantityPath: stockKey } : null;
 };
 
 const autoMapCheckout = (json: Record<string, unknown>) => {
   if (typeof json !== 'object' || json === null) return null;
-  const keys = Object.keys(json);
-  const confKey = keys.find(k => /conf/i.test(k) || /code/i.test(k) || /ref/i.test(k) || /^id$/i.test(k));
+  const flatJson = flattenObject(json);
+  const flatKeys = Object.keys(flatJson);
+  
+  const confKey = flatKeys.find(k => {
+    const lastSegment = k.split('.').pop() || k;
+    return /conf/i.test(lastSegment) || /code/i.test(lastSegment) || /ref/i.test(lastSegment) || /^id$/i.test(lastSegment);
+  });
   return confKey ? { checkoutConfirmationPath: confKey } : null;
 };
 
@@ -276,7 +311,6 @@ export function SupplierIntegration() {
 
         if (suggestions) {
           let hasNewSuggestions = false;
-          // Only overwrite paths that are currently empty (Non-Destructive)
           Object.keys(suggestions).forEach(key => {
             const k = key as keyof FieldMapping;
             if (!updated[k] && suggestions[k] !== undefined && suggestions[k] !== '') {
