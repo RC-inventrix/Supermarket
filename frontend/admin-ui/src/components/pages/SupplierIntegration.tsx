@@ -21,12 +21,70 @@ import { useSuppliers } from '../../hooks/useSuppliers';
 import { supplierSchema, type SupplierFormData } from '../../utils/validators';
 import type { Supplier, FieldMapping } from '../../types';
 
-// Mock Categories (Replace with API fetch later)
+// Mock Categories
 const CATEGORIES = [
   { id: 1, name: 'Meat' },
   { id: 2, name: 'Vegetables' },
   { id: 3, name: 'Spices' },
 ];
+
+// ─── SMART AUTO-MAPPING HEURISTICS ───────────────────────────────────────────
+const autoMapCatalog = (json: Record<string, unknown>) => {
+  let rootPath = '';
+  let sampleItem: any = null;
+  let itemPathPrefix = '';
+
+  // 1. Identify the Array Root
+  if (Array.isArray(json)) {
+    rootPath = '';
+    sampleItem = json[0];
+    itemPathPrefix = '[0].';
+  } else {
+    for (const key of Object.keys(json)) {
+      if (Array.isArray(json[key])) {
+        rootPath = key;
+        sampleItem = json[key][0];
+        itemPathPrefix = `${key}[0].`;
+        break;
+      }
+    }
+  }
+
+  if (!sampleItem || typeof sampleItem !== 'object') return null;
+
+  // 2. Pattern Match Keys
+  const keys = Object.keys(sampleItem);
+  const findKey = (patterns: RegExp[]) => {
+    for (const pattern of patterns) {
+      const match = keys.find(k => pattern.test(k));
+      if (match) return `${itemPathPrefix}${match}`;
+    }
+    return '';
+  };
+
+  return {
+    arrayRootPath: rootPath,
+    idPath: findKey([/^id$/i, /uuid/i, /code/i, /externalid/i]),
+    namePath: findKey([/name/i, /title/i]),
+    pricePath: findKey([/price/i, /cost/i, /baseprice/i]),
+    catalogQuantityPath: findKey([/quant/i, /qty/i, /stock/i, /avail/i]),
+    descriptionPath: findKey([/desc/i, /summary/i, /detail/i])
+  };
+};
+
+const autoMapAvailability = (json: Record<string, unknown>) => {
+  if (typeof json !== 'object' || json === null) return null;
+  const keys = Object.keys(json);
+  const stockKey = keys.find(k => /stock/i.test(k) || /quant/i.test(k) || /avail/i.test(k));
+  return stockKey ? { availabilityQuantityPath: stockKey } : null;
+};
+
+const autoMapCheckout = (json: Record<string, unknown>) => {
+  if (typeof json !== 'object' || json === null) return null;
+  const keys = Object.keys(json);
+  const confKey = keys.find(k => /conf/i.test(k) || /code/i.test(k) || /ref/i.test(k) || /^id$/i.test(k));
+  return confKey ? { checkoutConfirmationPath: confKey } : null;
+};
 
 // ─── JSON Tree Viewer ────────────────────────────────────────────────────────
 interface JsonTreeNodeProps {
@@ -206,6 +264,34 @@ export function SupplierIntegration() {
       const json = await supplierService.fetchSampleJson(baseUrl, endpoint);
       setSampleJsons(prev => ({ ...prev, [type]: json }));
       toast.success(`Sample ${type} JSON fetched!`);
+
+      // ---> THE SMART AUTO-MAPPER FIX <---
+      setMapping(prev => {
+        const updated = { ...prev };
+        let suggestions: any = null;
+
+        if (type === 'catalog') suggestions = autoMapCatalog(json);
+        if (type === 'availability') suggestions = autoMapAvailability(json);
+        if (type === 'checkout') suggestions = autoMapCheckout(json);
+
+        if (suggestions) {
+          let hasNewSuggestions = false;
+          // Only overwrite paths that are currently empty (Non-Destructive)
+          Object.keys(suggestions).forEach(key => {
+            const k = key as keyof FieldMapping;
+            if (!updated[k] && suggestions[k] !== undefined && suggestions[k] !== '') {
+              updated[k] = suggestions[k];
+              hasNewSuggestions = true;
+            }
+          });
+          
+          if (hasNewSuggestions) {
+            toast.info(`Auto-suggested paths for ${type}! Please review.`, { autoClose: 4000 });
+          }
+        }
+        return updated;
+      });
+
     } catch {
       toast.error(`Failed to fetch ${type} JSON. Check endpoints.`);
     } finally {
@@ -306,7 +392,6 @@ export function SupplierIntegration() {
                     <span className="font-medium text-gray-900">{supplier.name}</span>
                     <Badge label={supplier.isActive ? 'active' : 'inactive'} className={supplier.isActive ? 'bg-green-100' : 'bg-gray-100'} />
                     
-                    {/* THE FIX: Dynamic Internal/External Flag Badge */}
                     {supplier.supplierBaseUrl ? (
                       <Badge label="External API" className="bg-blue-100 text-blue-800" />
                     ) : (
@@ -319,7 +404,6 @@ export function SupplierIntegration() {
                   </p>
                 </div>
                 <div className="flex gap-2">
-                  {/* THE FIX: Hide API buttons for internal suppliers! */}
                   {supplier.supplierBaseUrl && (
                     <>
                       <Button variant="outline" size="sm" onClick={() => handleSyncAvailability(supplier)}>
