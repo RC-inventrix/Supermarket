@@ -1,66 +1,65 @@
-# Setup Guide for Supermarket Project
+# SETUP GUIDE for Supermarket Project
 
-## Setup Details
-This guide explains how to set up and run the Supermarket project locally.
+## .NET 8 Setup Instructions
 
-## Technologies and Versions
-- **Node.js**: v14.17.0
-- **Docker**: v20.10.8
-- **MongoDB**: v5.0.3
+1. **Install .NET 8**:
+   - Download the .NET 8 SDK from the [official website](https://dotnet.microsoft.com/download/dotnet/8.0).
+   - Follow the installation instructions for your operating system.
 
-## Prerequisites
-Before you begin, ensure you have the following installed:
-- Docker
-- Docker Compose
-- Git
+2. **Verify the Installation**:
+   - Open a terminal/command prompt and run:
+     ```bash
+     dotnet --version
+     ```
 
-## Quick Start Guide with Docker
-1. Clone the repository:
-   ```bash
-   git clone https://github.com/RC-inventrix/Supermarket.git
-   cd Supermarket
-   ```
-2. Build and run the application with Docker:
-   ```bash
-   docker-compose up --build
-   ```
-3. Access the application at `http://localhost:3000`.
+## SQL Server 2022 Setup Instructions
 
-## Local Development Instructions
-1. Set up your environment variables in a `.env` file based on the `.env.example` provided.
-2. Run the application locally without Docker:
-   ```bash
-   npm install
-   npm start
-   ```
-3. The application will be accessible at `http://localhost:3000`.
+1. **Install SQL Server 2022**:
+   - Download SQL Server 2022 from the [Microsoft website](https://www.microsoft.com/en-us/sql-server/sql-server-downloads).
+   - Follow the installation steps provided.
 
-## Project Structure
-```
-/Supermarket
-    /src                # Source files
-    /tests              # Test files
-    /docker             # Docker files
-    .env.example        # Sample environment variables
-    Dockerfile          # Docker configuration
-    docker-compose.yml  # Docker orchestration file
-    README.md          # Project documentation
-    SETUP_GUIDE.md     # Setup guide
-```
+2. **Configure SQL Server**:
+   - Set up a new database for the Supermarket project.
+   - Ensure SQL authentication is enabled.
 
-## Verification Steps
-To verify the correct setup:
-1. Ensure the application runs without errors.
-2. Run the test suite:
-   ```bash
-   npm test
-   ```
+## Docker Setup (Optional)
 
-## Database Initialization
-1. After starting the application, the database will be automatically initialized via MongoDB.
-2. You can use the provided scripts to seed your database if needed.
-   ```bash
-   npm run seed
-   ```
+1. **Install Docker**:
+   - Download Docker Desktop from the [official website](https://www.docker.com/products/docker-desktop).
+   - Follow the installation instructions for your operating system.
 
-For any issues, refer to the project documentation or reach out to the maintainers.
+2. **Run SQL Server in Docker**:
+   - Use the following command to pull the SQL Server 2022 image:
+     ```bash
+     docker pull mcr.microsoft.com/mssql/server:2022-latest
+     ```
+   - Run SQL Server in a container:
+     ```bash
+     docker run -e 'ACCEPT_EULA=Y' -e 'SA_PASSWORD=Your_password123' -p 1433:1433 --name sql_server -d mcr.microsoft.com/mssql/server:2022-latest
+     ```
+
+## Local Development Options
+
+1. **Clone the Repository**:
+   - Clone the Supermarket repo using:
+     ```bash
+     git clone https://github.com/RC-inventrix/Supermarket.git
+     ```
+
+2. **Navigate to the Project Directory**:
+   - Change into the directory:
+     ```bash
+     cd Supermarket
+     ```
+
+3. **Run the Application**:
+   - Begin development with:
+     ```bash
+     dotnet run
+     ```
+     - This assumes you have restored the necessary packages using `dotnet restore`.
+
+## Conclusion
+
+- Ensure you follow the instructions sequentially.
+- If you encounter any issues, consult the README or the GitHub discussions.
