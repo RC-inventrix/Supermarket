@@ -164,7 +164,6 @@ export function SupplierIntegration() {
   // JSON Mapper State
   const [activeTab, setActiveTab] = useState<'catalog' | 'availability' | 'checkout'>('catalog');
   
-  // THE FIX: Replaced "any" with Record<string, unknown>
   const [sampleJsons, setSampleJsons] = useState<{ 
     catalog: Record<string, unknown> | null; 
     availability: Record<string, unknown> | null; 
@@ -306,16 +305,32 @@ export function SupplierIntegration() {
                   <div className="flex items-center gap-2">
                     <span className="font-medium text-gray-900">{supplier.name}</span>
                     <Badge label={supplier.isActive ? 'active' : 'inactive'} className={supplier.isActive ? 'bg-green-100' : 'bg-gray-100'} />
+                    
+                    {/* THE FIX: Dynamic Internal/External Flag Badge */}
+                    {supplier.supplierBaseUrl ? (
+                      <Badge label="External API" className="bg-blue-100 text-blue-800" />
+                    ) : (
+                      <Badge label="Internal" className="bg-purple-100 text-purple-800" />
+                    )}
+
                   </div>
-                  <p className="mt-0.5 text-xs text-gray-500">{supplier.supplierBaseUrl}</p>
+                  <p className="mt-0.5 text-xs text-gray-500">
+                    {supplier.supplierBaseUrl ? supplier.supplierBaseUrl : 'Manual Supplier (No Integration)'}
+                  </p>
                 </div>
                 <div className="flex gap-2">
-                  <Button variant="outline" size="sm" onClick={() => handleSyncAvailability(supplier)}>
-                    <HiRefresh className="h-4 w-4" /> Sync Stock
-                  </Button>
-                  <Button variant="outline" size="sm" onClick={() => handleImport(supplier)}>
-                    <HiRefresh className="h-4 w-4" /> Import
-                  </Button>
+                  {/* THE FIX: Hide API buttons for internal suppliers! */}
+                  {supplier.supplierBaseUrl && (
+                    <>
+                      <Button variant="outline" size="sm" onClick={() => handleSyncAvailability(supplier)}>
+                        <HiRefresh className="h-4 w-4" /> Sync Stock
+                      </Button>
+                      <Button variant="outline" size="sm" onClick={() => handleImport(supplier)}>
+                        <HiRefresh className="h-4 w-4" /> Import
+                      </Button>
+                    </>
+                  )}
+                  
                   <Button variant="ghost" size="sm" onClick={() => deleteSupplier(supplier.id)}>
                     <HiTrash className="h-4 w-4 text-red-500" />
                   </Button>

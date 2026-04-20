@@ -20,9 +20,6 @@ namespace CoreBooking.API.Controllers
             _gatewayClient = gatewayClient;
         }
 
-        // Removed the Duplicate ImportProducts endpoint! 
-        // SuppliersController handles all imports now via POST /api/suppliers/{id}/import.
-
         [HttpPut("sync-availability/{productId}")]
         public async Task<IActionResult> SyncProductAvailability(int productId)
         {
@@ -33,6 +30,39 @@ namespace CoreBooking.API.Controllers
             await _context.SaveChangesAsync();
 
             return Ok(new { Message = $"Successfully synced availability for '{product.Name}'.", LiveStock = product.AvailableQuantity });
+        }
+
+        // --- NEW FIX: Get Dynamic Dashboard Statistics ---
+        [HttpGet("dashboard-stats")]
+        public async Task<IActionResult> GetDashboardStats()
+        {
+            var totalProducts = await _context.Products.CountAsync();
+            var activeSuppliers = await _context.Providers.CountAsync(p => p.IsActive);
+            var totalOrders = await _context.Orders.CountAsync();
+
+            return Ok(new
+            {
+                TotalProducts = totalProducts,
+                ActiveSuppliers = activeSuppliers,
+                TotalOrders = totalOrders
+            });
+        }
+
+        // --- NEW FIX: Verify Live System Connection Health ---
+        [HttpGet("system-status")]
+        public async Task<IActionResult> GetSystemStatus()
+        {
+            // 1. Check if the SQL Server Database responds
+            bool backendConnected = await _context.Database.CanConnectAsync();
+
+            // 2. Check if the Adapter Gateway Container responds
+            bool gatewayConnected = await _gatewayClient.PingAsync();
+
+            return Ok(new
+            {
+                BackendConnected = backendConnected,
+                GatewayConnected = gatewayConnected
+            });
         }
     }
 }

@@ -116,6 +116,21 @@ namespace CoreBooking.API.Services
             return availableStock;
         }
 
+        public async Task<bool> PingAsync()
+        {
+            try
+            {
+                // Send a lightweight request just to see if the Gateway container answers
+                var response = await _httpClient.GetAsync("/api/gateway/import");
+                return response != null;
+            }
+            catch
+            {
+                // If it throws a connection exception, the container is down
+                return false;
+            }
+        }
+        // ------------------------------------
         public async Task<string> PlaceOrderAsync(Provider provider, string externalProductId, int quantity)
         {
             var request = new { SupplierBaseUrl = provider.SupplierBaseUrl, Endpoint = provider.CheckoutEndpoint, ExternalProductId = externalProductId, Quantity = quantity };

@@ -1,14 +1,30 @@
-import { HiShoppingBag, HiUsers, HiClipboardList, HiTrendingUp } from 'react-icons/hi';
+import { useState, useEffect } from 'react';
+import { HiShoppingBag, HiUsers, HiClipboardList } from 'react-icons/hi';
 import { Card } from '../ui/Card';
-
-const stats = [
-  { label: 'Total Products', value: '—', icon: HiShoppingBag, color: 'text-blue-600', bg: 'bg-blue-50' },
-  { label: 'Active Suppliers', value: '—', icon: HiUsers, color: 'text-green-600', bg: 'bg-green-50' },
-  { label: 'Total Orders', value: '—', icon: HiClipboardList, color: 'text-purple-600', bg: 'bg-purple-50' },
-  { label: 'Revenue', value: '—', icon: HiTrendingUp, color: 'text-orange-600', bg: 'bg-orange-50' },
-];
+import { adminService, type DashboardStats, type SystemStatus } from '../../services/adminService';
 
 export function Dashboard() {
+  const [stats, setStats] = useState<DashboardStats | null>(null);
+  const [status, setStatus] = useState<SystemStatus | null>(null);
+
+  useEffect(() => {
+    // Fetch actual data from your database on load
+    adminService.getStats().then(setStats).catch(() => {});
+    
+    // Ping the backend and the gateway to verify connection
+    adminService.getSystemStatus().then(setStatus).catch(() => {
+      // If the request completely fails, we know the backend is down
+      setStatus({ backendConnected: false, gatewayConnected: false });
+    });
+  }, []);
+
+  // Removed Revenue, updated with real dynamic data
+  const statCards = [
+    { label: 'Total Products', value: stats?.totalProducts ?? '—', icon: HiShoppingBag, color: 'text-blue-600', bg: 'bg-blue-50' },
+    { label: 'Active Suppliers', value: stats?.activeSuppliers ?? '—', icon: HiUsers, color: 'text-green-600', bg: 'bg-green-50' },
+    { label: 'Total Orders', value: stats?.totalOrders ?? '—', icon: HiClipboardList, color: 'text-purple-600', bg: 'bg-purple-50' },
+  ];
+
   return (
     <div className="space-y-6">
       <div>
@@ -18,8 +34,8 @@ export function Dashboard() {
         </p>
       </div>
 
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        {stats.map(({ label, value, icon: Icon, color, bg }) => (
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        {statCards.map(({ label, value, icon: Icon, color, bg }) => (
           <Card key={label}>
             <div className="flex items-center gap-4">
               <div className={`rounded-lg ${bg} p-3`}>
@@ -45,15 +61,36 @@ export function Dashboard() {
         </Card>
         <Card>
           <h4 className="mb-3 font-semibold text-gray-900">System Status</h4>
-          <div className="space-y-2">
+          <div className="space-y-4 mt-4">
+            
+            {/* Backend API Live Status */}
             <div className="flex items-center justify-between text-sm">
-              <span className="text-gray-600">Backend API</span>
-              <span className="rounded-full bg-gray-100 px-2 py-0.5 text-xs text-gray-600">Not connected</span>
+              <span className="text-gray-600 font-medium">Backend API</span>
+              {status === null ? (
+                <span className="rounded-full bg-gray-100 px-3 py-1 text-xs text-gray-600 animate-pulse">Checking...</span>
+              ) : (
+                <span className={`rounded-full px-3 py-1 text-xs font-semibold ${
+                  status.backendConnected ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'
+                }`}>
+                  {status.backendConnected ? 'Connected' : 'Disconnected'}
+                </span>
+              )}
             </div>
-            <div className="flex items-center justify-between text-sm">
-              <span className="text-gray-600">Adapter Gateway</span>
-              <span className="rounded-full bg-gray-100 px-2 py-0.5 text-xs text-gray-600">Not connected</span>
+
+            {/* Adapter Gateway Live Status */}
+            <div className="flex items-center justify-between text-sm border-t pt-3">
+              <span className="text-gray-600 font-medium">Adapter Gateway</span>
+              {status === null ? (
+                <span className="rounded-full bg-gray-100 px-3 py-1 text-xs text-gray-600 animate-pulse">Checking...</span>
+              ) : (
+                <span className={`rounded-full px-3 py-1 text-xs font-semibold ${
+                  status.gatewayConnected ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'
+                }`}>
+                  {status.gatewayConnected ? 'Connected' : 'Disconnected'}
+                </span>
+              )}
             </div>
+
           </div>
         </Card>
       </div>
