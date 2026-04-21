@@ -44,9 +44,14 @@ export const supplierService = {
     return response.data;
   },
 
-  // NEW FIX: Added endpoint to sync availability
   syncAvailability: async (id: number): Promise<{ synced: number; updated: number }> => {
     const response = await api.post<{ synced: number; updated: number }>(`/api/suppliers/${id}/sync-availability`);
     return response.data;
   },
+
+  // NEW FIX: Exposed Status Check Endpoint
+  checkStatus: async (id: number): Promise<{ isOnline: boolean }> => {
+    const response = await api.get<{ isOnline: boolean }>(`/api/suppliers/${id}/status`);
+    return response.data;
+  }
 };

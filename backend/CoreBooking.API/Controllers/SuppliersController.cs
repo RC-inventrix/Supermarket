@@ -20,7 +20,6 @@ namespace CoreBooking.API.Controllers
             _gatewayClient = gatewayClient;
         }
 
-        // GET: /api/suppliers
         [HttpGet]
         public async Task<IActionResult> GetAll()
         {
@@ -40,7 +39,6 @@ namespace CoreBooking.API.Controllers
                         }
                         catch
                         {
-                            // Silently ignore invalid JSON from old records
                         }
                     }
 
@@ -67,7 +65,18 @@ namespace CoreBooking.API.Controllers
             }
         }
 
-        // POST: /api/suppliers 
+        // ---> NEW FIX: Endpoint to check if a supplier is online <---
+        [HttpGet("{id}/status")]
+        public async Task<IActionResult> GetSupplierStatus(int id)
+        {
+            var provider = await _context.Providers.FindAsync(id);
+            if (provider == null) return NotFound("Supplier not found.");
+
+            bool isOnline = await _gatewayClient.CheckSupplierStatusAsync(provider);
+            return Ok(new { IsOnline = isOnline });
+        }
+        // -------------------------------------------------------------
+
         [HttpPost]
         public async Task<IActionResult> CreateSupplier([FromBody] CreateSupplierDto request)
         {
@@ -97,7 +106,6 @@ namespace CoreBooking.API.Controllers
             }
         }
 
-        // DELETE: /api/suppliers/{id}
         [HttpDelete("{id}")]
         public async Task<IActionResult> DeleteSupplier(int id)
         {
@@ -110,7 +118,6 @@ namespace CoreBooking.API.Controllers
             return Ok(new { Message = "Supplier deleted successfully." });
         }
 
-        // POST: /api/suppliers/{id}/import 
         [HttpPost("{id}/import")]
         public async Task<IActionResult> ImportProducts(int id)
         {
@@ -135,7 +142,6 @@ namespace CoreBooking.API.Controllers
                     var existingProduct = existingProducts.FirstOrDefault(p => p.ExternalProductId == importedProduct.ExternalProductId);
                     if (existingProduct != null)
                     {
-                        // Update existing product
                         existingProduct.Name = importedProduct.Name;
                         existingProduct.Price = importedProduct.Price;
                         existingProduct.AvailableQuantity = importedProduct.AvailableQuantity;
@@ -149,7 +155,6 @@ namespace CoreBooking.API.Controllers
                     }
                     else
                     {
-                        // Add new product
                         _context.Products.Add(importedProduct);
                         addedCount++;
                     }
@@ -164,8 +169,6 @@ namespace CoreBooking.API.Controllers
             }
         }
 
-        // ---> NEW FIX: Sync Availability Endpoint <---
-        // POST: /api/suppliers/{id}/sync-availability
         [HttpPost("{id}/sync-availability")]
         public async Task<IActionResult> SyncAvailability(int id)
         {
@@ -180,12 +183,10 @@ namespace CoreBooking.API.Controllers
 
                 int updatedCount = 0;
 
-                // Loop through all existing products and ask the Gateway for live stock
                 foreach (var product in existingProducts)
                 {
                     var liveStock = await _gatewayClient.CheckAvailabilityAsync(provider, product.ExternalProductId);
 
-                    // Only update and save if the stock actually changed
                     if (product.AvailableQuantity != liveStock)
                     {
                         product.AvailableQuantity = liveStock;
@@ -205,9 +206,7 @@ namespace CoreBooking.API.Controllers
                 return StatusCode(500, new { Message = "Sync failed.", Details = ex.Message });
             }
         }
-        // ---------------------------------------------
 
-        // POST: /api/suppliers/fetch-sample
         [HttpPost("fetch-sample")]
         public async Task<IActionResult> FetchSample([FromBody] FetchSampleRequest request)
         {
@@ -228,7 +227,6 @@ namespace CoreBooking.API.Controllers
         }
     }
 
-    // --- DTOs ---
     public class FetchSampleRequest
     {
         public string BaseUrl { get; set; } = string.Empty;

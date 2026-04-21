@@ -22,7 +22,6 @@ namespace CoreBooking.API.Services
                 new JsonSerializerOptions { PropertyNameCaseInsensitive = true }) ?? new SupplierMappingConfig();
         }
 
-        // --- Cleans the literal UI path (e.g., "[0].name" -> "name") so it works inside the loop
         private string GetRelativeItemPath(string arrayRootPath, string fullPath)
         {
             if (string.IsNullOrWhiteSpace(fullPath)) return string.Empty;
@@ -48,14 +47,12 @@ namespace CoreBooking.API.Services
 
             if (arrayNode != null)
             {
-                // Clean all paths before entering the loop
                 var cleanIdPath = GetRelativeItemPath(mapping.ArrayRootPath, mapping.IdPath);
                 var cleanNamePath = GetRelativeItemPath(mapping.ArrayRootPath, mapping.NamePath);
                 var cleanPricePath = GetRelativeItemPath(mapping.ArrayRootPath, mapping.PricePath);
                 var cleanQtyPath = GetRelativeItemPath(mapping.ArrayRootPath, mapping.CatalogQuantityPath);
                 var cleanDescPath = GetRelativeItemPath(mapping.ArrayRootPath, mapping.DescriptionPath);
 
-                // Keep track of mapped paths so we know which ones are "unmapped" for the EAV attributes
                 var mappedPaths = new HashSet<string> { cleanIdPath, cleanNamePath, cleanPricePath, cleanQtyPath, cleanDescPath };
 
                 foreach (var item in arrayNode)
@@ -76,18 +73,15 @@ namespace CoreBooking.API.Services
                         AvailableQuantity = qty
                     };
 
-                    // --- 1. HANDLE CONTENT (Description) ---
                     if (!string.IsNullOrWhiteSpace(description))
                     {
                         product.Contents.Add(new ProductContent { ContentType = "Description", Data = description });
                     }
 
-                    // --- 2. HANDLE EAV ATTRIBUTES (Unmapped Fields) ---
                     if (item is JsonObject jsonObj)
                     {
                         foreach (var kvp in jsonObj)
                         {
-                            // If the key wasn't explicitly mapped, and it's a simple value (string/number/bool), save it as an attribute!
                             if (!mappedPaths.Contains(kvp.Key) && kvp.Value is JsonValue val)
                             {
                                 product.Attributes.Add(new ProductAttribute { Name = kvp.Key, Value = val.ToString() });
@@ -120,17 +114,33 @@ namespace CoreBooking.API.Services
         {
             try
             {
-                // Send a lightweight request just to see if the Gateway container answers
                 var response = await _httpClient.GetAsync("/api/gateway/import");
                 return response != null;
             }
             catch
             {
-                // If it throws a connection exception, the container is down
                 return false;
             }
         }
-        // ------------------------------------
+
+        // ---> NEW FIX: Safely ping individual suppliers through the gateway <---
+        public async Task<bool> CheckSupplierStatusAsync(Provider provider)
+        {
+            if (string.IsNullOrWhiteSpace(provider.SupplierBaseUrl)) return true;
+
+            try
+            {
+                var request = new { SupplierBaseUrl = provider.SupplierBaseUrl, Endpoint = provider.CatalogEndpoint };
+                var response = await _httpClient.PostAsJsonAsync("/api/gateway/fetch-sample", request);
+                return response.IsSuccessStatusCode;
+            }
+            catch
+            {
+                return false; // Safely swallows the exception if the docker container is offline
+            }
+        }
+        // -----------------------------------------------------------------------
+
         public async Task<string> PlaceOrderAsync(Provider provider, string externalProductId, int quantity)
         {
             var request = new { SupplierBaseUrl = provider.SupplierBaseUrl, Endpoint = provider.CheckoutEndpoint, ExternalProductId = externalProductId, Quantity = quantity };
@@ -146,7 +156,6 @@ namespace CoreBooking.API.Services
             return string.IsNullOrWhiteSpace(confirmationCode) ? "CONFIRMED" : confirmationCode;
         }
 
-        // ---> THE MISSING FIX: Put the FetchSampleJsonAsync method back in! <---
         public async Task<string> FetchSampleJsonAsync(string supplierBaseUrl, string endpoint)
         {
             var request = new { SupplierBaseUrl = supplierBaseUrl, Endpoint = endpoint };
@@ -159,9 +168,7 @@ namespace CoreBooking.API.Services
 
             return await response.Content.ReadAsStringAsync();
         }
-        // -------------------------------------------------------------------------
 
-        // --- JSON DOT-NOTATION HELPER METHODS ---
         private JsonNode? GetNodeByPath(JsonNode? current, string path)
         {
             if (current == null || string.IsNullOrEmpty(path)) return current;

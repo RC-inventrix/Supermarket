@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { toast } from 'react-toastify';
@@ -30,7 +30,6 @@ const CATEGORIES = [
 
 // ─── SMART AUTO-MAPPING HEURISTICS ───────────────────────────────────────────
 
-// Helper 1: Recursively find the first array in the JSON and return its path
 function findArrayPath(obj: any, currentPath = ''): { path: string, array: any[] } | null {
   if (Array.isArray(obj)) {
     return { path: currentPath, array: obj };
@@ -45,7 +44,6 @@ function findArrayPath(obj: any, currentPath = ''): { path: string, array: any[]
   return null;
 }
 
-// Helper 2: Flatten a nested object to dot-notation keys (e.g. core_info.title)
 function flattenObject(obj: any, prefix = ''): Record<string, any> {
   let flat: Record<string, any> = {};
   for (const key in obj) {
@@ -71,11 +69,9 @@ const autoMapCatalog = (json: Record<string, unknown>) => {
 
   if (!sampleItem || typeof sampleItem !== 'object') return null;
 
-  // Flatten the item so we can scan nested keys easily
   const flatItem = flattenObject(sampleItem);
   const flatKeys = Object.keys(flatItem);
 
-  // Pattern Match Keys (only testing the last segment of the path so parents like "price_info" don't falsely trigger)
   const findKey = (patterns: RegExp[]) => {
     for (const pattern of patterns) {
       const match = flatKeys.find(k => {
@@ -217,7 +213,6 @@ function JsonTreeNode({ data, path, onSelect, selectedPath, depth = 0 }: JsonTre
   );
 }
 
-// ─── Field Mapping Row ────────────────────────────────────────────────────────
 interface MappingRowProps {
   fieldName: keyof FieldMapping;
   fieldLabel: string;
@@ -247,14 +242,36 @@ export function SupplierIntegration() {
   const [confirmModalOpen, setConfirmModalOpen] = useState(false);
   const [pendingSupplierData, setPendingSupplierData] = useState<SupplierFormData | null>(null);
 
-  // Form State
+  // NEW FIX: Track individual connection status for each supplier
+  const [supplierStatuses, setSupplierStatuses] = useState<Record<number, boolean>>({});
+  const [checkingStatus, setCheckingStatus] = useState<Record<number, boolean>>({});
+
+  useEffect(() => {
+    suppliers.forEach(supplier => {
+      if (supplier.supplierBaseUrl) {
+        setCheckingStatus(prev => ({ ...prev, [supplier.id]: true }));
+        supplierService.checkStatus(supplier.id)
+          .then(res => {
+            setSupplierStatuses(prev => ({ ...prev, [supplier.id]: res.isOnline }));
+          })
+          .catch(() => {
+            setSupplierStatuses(prev => ({ ...prev, [supplier.id]: false }));
+          })
+          .finally(() => {
+            setCheckingStatus(prev => ({ ...prev, [supplier.id]: false }));
+          });
+      } else {
+        setSupplierStatuses(prev => ({ ...prev, [supplier.id]: true }));
+      }
+    });
+  }, [suppliers]);
+
   const { register, handleSubmit, watch, reset, formState: { errors } } = useForm<SupplierFormData>({ resolver: zodResolver(supplierSchema) });
   const formBaseUrl = watch('supplierBaseUrl');
   const formCatalogEp = watch('catalogEndpoint');
   const formAvailabilityEp = watch('availabilityEndpoint');
   const formCheckoutEp = watch('checkoutEndpoint');
 
-  // JSON Mapper State
   const [activeTab, setActiveTab] = useState<'catalog' | 'availability' | 'checkout'>('catalog');
   
   const [sampleJsons, setSampleJsons] = useState<{ 
@@ -300,7 +317,6 @@ export function SupplierIntegration() {
       setSampleJsons(prev => ({ ...prev, [type]: json }));
       toast.success(`Sample ${type} JSON fetched!`);
 
-      // ---> THE SMART AUTO-MAPPER FIX <---
       setMapping(prev => {
         const updated = { ...prev };
         let suggestions: any = null;
@@ -384,7 +400,7 @@ export function SupplierIntegration() {
       const result = await supplierService.importProducts(supplier.id);
       toast.success(`Imported ${result.imported} products from ${supplier.name}`);
     } catch {
-      toast.error('Failed to import products');
+      toast.error('Failed to import products. Check connection or mappings.');
     }
   };
 
@@ -393,7 +409,7 @@ export function SupplierIntegration() {
       const result = await supplierService.syncAvailability(supplier.id);
       toast.success(`Synced stock for ${result.synced} products. ${result.updated} were updated!`);
     } catch {
-      toast.error('Failed to sync availability');
+      toast.error('Failed to sync availability. Check connection.');
     }
   };
 
@@ -419,42 +435,58 @@ export function SupplierIntegration() {
           <div className="py-12 text-center text-sm text-gray-500">No suppliers configured yet.</div>
         ) : (
           <div className="divide-y divide-gray-200">
-            {suppliers.map((supplier) => (
-              <div key={supplier.id} className="flex items-center justify-between px-6 py-4">
-                <div className="flex-1">
-                  <div className="flex items-center gap-2">
-                    <span className="font-medium text-gray-900">{supplier.name}</span>
-                    <Badge label={supplier.isActive ? 'active' : 'inactive'} className={supplier.isActive ? 'bg-green-100' : 'bg-gray-100'} />
-                    
-                    {supplier.supplierBaseUrl ? (
-                      <Badge label="External API" className="bg-blue-100 text-blue-800" />
-                    ) : (
-                      <Badge label="Internal" className="bg-purple-100 text-purple-800" />
-                    )}
+            {suppliers.map((supplier) => {
+              const isOnline = supplierStatuses[supplier.id];
+              const isChecking = checkingStatus[supplier.id];
 
+              return (
+                <div key={supplier.id} className="flex items-center justify-between px-6 py-4">
+                  <div className="flex-1">
+                    <div className="flex items-center gap-2">
+                      <span className="font-medium text-gray-900">{supplier.name}</span>
+                      <Badge label={supplier.isActive ? 'active' : 'inactive'} className={supplier.isActive ? 'bg-green-100' : 'bg-gray-100'} />
+                      
+                      {/* NEW FIX: Dynamically render Online/Offline statuses */}
+                      {supplier.supplierBaseUrl ? (
+                        <>
+                          <Badge label="External API" className="bg-blue-100 text-blue-800" />
+                          {isChecking ? (
+                            <Badge label="Checking..." className="bg-gray-100 text-gray-600 animate-pulse" />
+                          ) : isOnline ? (
+                            <Badge label="Online" className="bg-green-100 text-green-800" />
+                          ) : (
+                            <Badge label="Offline" className="bg-red-100 text-red-800" />
+                          )}
+                        </>
+                      ) : (
+                        <Badge label="Internal" className="bg-purple-100 text-purple-800" />
+                      )}
+
+                    </div>
+                    <p className="mt-0.5 text-xs text-gray-500">
+                      {supplier.supplierBaseUrl ? supplier.supplierBaseUrl : 'Manual Supplier (No Integration)'}
+                    </p>
                   </div>
-                  <p className="mt-0.5 text-xs text-gray-500">
-                    {supplier.supplierBaseUrl ? supplier.supplierBaseUrl : 'Manual Supplier (No Integration)'}
-                  </p>
+                  <div className="flex gap-2">
+                    {/* NEW FIX: Disable buttons completely if the supplier is checking or offline */}
+                    {supplier.supplierBaseUrl && (
+                      <>
+                        <Button variant="outline" size="sm" onClick={() => handleSyncAvailability(supplier)} disabled={!isOnline || isChecking}>
+                          <HiRefresh className="h-4 w-4" /> Sync Stock
+                        </Button>
+                        <Button variant="outline" size="sm" onClick={() => handleImport(supplier)} disabled={!isOnline || isChecking}>
+                          <HiRefresh className="h-4 w-4" /> Import
+                        </Button>
+                      </>
+                    )}
+                    
+                    <Button variant="ghost" size="sm" onClick={() => deleteSupplier(supplier.id)}>
+                      <HiTrash className="h-4 w-4 text-red-500" />
+                    </Button>
+                  </div>
                 </div>
-                <div className="flex gap-2">
-                  {supplier.supplierBaseUrl && (
-                    <>
-                      <Button variant="outline" size="sm" onClick={() => handleSyncAvailability(supplier)}>
-                        <HiRefresh className="h-4 w-4" /> Sync Stock
-                      </Button>
-                      <Button variant="outline" size="sm" onClick={() => handleImport(supplier)}>
-                        <HiRefresh className="h-4 w-4" /> Import
-                      </Button>
-                    </>
-                  )}
-                  
-                  <Button variant="ghost" size="sm" onClick={() => deleteSupplier(supplier.id)}>
-                    <HiTrash className="h-4 w-4 text-red-500" />
-                  </Button>
-                </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         )}
       </Card>
