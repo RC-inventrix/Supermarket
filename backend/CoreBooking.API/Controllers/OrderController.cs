@@ -127,7 +127,7 @@ namespace CoreBooking.API.Controllers
                 var product = item.Product;
                 if (product == null || product.Provider == null) continue;
 
-                // THE FIX: Check if this is a manual (internal) product with no Base URL
+                // Check if this is a manual (internal) product with no Base URL
                 bool isInternalProduct = string.IsNullOrWhiteSpace(product.Provider.SupplierBaseUrl);
 
                 if (isInternalProduct)
@@ -138,7 +138,7 @@ namespace CoreBooking.API.Controllers
                         return BadRequest($"Insufficient stock for {product.Name}. Only {product.AvailableQuantity} left in local inventory.");
                     }
 
-                    // Deduct local database stock directly
+                    // Deduct local database stock directly (because we ARE the source of truth)
                     product.AvailableQuantity -= item.Quantity;
 
                     // Generate a local confirmation code
@@ -157,8 +157,9 @@ namespace CoreBooking.API.Controllers
                     string bookingRef = await _gatewayClient.PlaceOrderAsync(product.Provider, product.ExternalProductId, item.Quantity);
                     externalRefs.Add(bookingRef);
 
-                    // Reduce local stock cache to stay synced with external supplier
-                    product.AvailableQuantity -= item.Quantity;
+                    // ---> THE FIX: Fetch the true updated stock directly from the supplier after checkout! <---
+                    int updatedSupplierStock = await _gatewayClient.CheckAvailabilityAsync(product.Provider, product.ExternalProductId);
+                    product.AvailableQuantity = updatedSupplierStock;
                 }
 
                 totalAmount += (item.UnitPrice * item.Quantity);
